@@ -23,6 +23,8 @@ Ricerche richieste dal `README.md` (sez. 45–60, 90–104, 119–122) e salvate
 | `12-preview-storage-sessione.md` | §20, §21, §39, §40, §41, §42, §43, §44, §60, §61, §62, §63, §71, §72, §73, §74, §101, §103, §104 |
 | `13-calibrazione-astrofotografia.md` | §53, §54, §95, §109–112 |
 | `14-piano-sperimentale-mvp.md` | §35, §36, §37, §49, §69, §70, §75–89, §105–108, §113–120, §122–125 |
+| `15-zoom-risoluzione-12-50mp.md` | §11, §11b, §30, §34, §66 |
+| `16-selezione-camera-wide-ultrawide-tele.md` | §50, §50b, §30, §34, §66 |
 
 Data ricerche: 2026-09-10. Fonti verificate: Google Store, Google Blog, Android Developers,
 AOSP/source.android.com, Zed/GPUI repo e docs, report teardown e guide astrofotografiche.

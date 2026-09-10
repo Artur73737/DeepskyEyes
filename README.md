@@ -503,6 +503,45 @@ where applicable.
 
 ---
 
+# 11b. Zoom and resolution selection (12MP binned vs 50MP full)
+
+Zoom and resolution are capability-driven selections, not constants.
+
+Zoom (optical + crop):
+
+```text
+CONTROL_ZOOM_RATIO_RANGE      → supported zoom ratio range
+SCALER_AVAILABLE_MAX_DIGITAL_ZOOM → max digital zoom
+SCALER_CROP_REGION            → active crop region
+```
+
+Pixel 8 Pro reference points (to be measured, never assumed):
+`2x` from main-sensor crop, `5x` optical tele, Super Res up to `30x`.
+
+Resolution (binned vs full):
+
+```text
+discovered sizes (per format)
+  → UI list (e.g. 12.5MP binned vs 50MP full-res on Pixel 8 Pro)
+  → requested / applied / reported
+```
+
+The Pixel 8 Pro "Pro settings" 50MP toggle is one selection from the
+discovered list. A request for an unannounced size must surface as
+`SIZE_NOT_SUPPORTED` / `VALUE_CLAMPED`, never as a silent fallback.
+
+Rust mapping:
+
+```text
+deepsky-camera::controls::zoom (ZoomControl, CropRegion)
+deepsky-camera::controls::resolution (StreamSize, ResolutionControl)
+ControlCommand::{SetZoom, SetCrop, SetResolution}
+CameraConfiguration::{resolution_requested/applied, zoom_ratio_x1000_requested/applied}
+UI components::{zoom_controls, resolution_controls}
+```
+
+---
+
 # 12. RAW acquisition
 
 RAW is a first-class requirement.
@@ -1653,6 +1692,40 @@ front
 ```
 
 and determine whether RAW/manual control is available independently.
+
+---
+
+# 50b. Lens selection (wide / ultrawide / telephoto / front)
+
+The desktop must offer an explicit lens selector, not a raw camera-ID field.
+
+```text
+discovery (camera IDs + physical IDs + LENS_FACING + focal)
+  → identify lens (wide / ultrawide / telephoto / front)
+  → UI selector (only announced lenses)
+  → SelectLens
+  → requested / applied
+```
+
+Pixel 8 Pro reference points (to be measured, never assumed):
+wide ~25mm equiv, ultrawide ~12mm equiv, telephoto ~112mm equiv 5x, front selfie.
+
+Rules:
+
+```text
+only announced lenses are selectable
+unknown lens → Unknown, never guessed silently
+RAW/manual availability is per-lens and must be re-validated on switch
+```
+
+Rust mapping:
+
+```text
+protocol LensType (wire) + CameraCommand::SelectLens
+deepsky-camera::lens (CameraLens, LensSelector, identify)
+CameraConfiguration::{lens_requested/applied}
+UI components::lens_selector
+```
 
 ---
 

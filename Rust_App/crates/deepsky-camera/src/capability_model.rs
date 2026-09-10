@@ -7,6 +7,8 @@ pub struct CapabilityModel {
     pub manual_exposure: bool,
     pub manual_focus: bool,
     pub manual_white_balance: bool,
+    pub zoom_supported: bool,
+    pub full_resolution_supported: bool,
 }
 
 impl CapabilityModel {
@@ -16,6 +18,8 @@ impl CapabilityModel {
             manual_exposure: raw.manual_sensor,
             manual_focus: raw.manual_sensor,
             manual_white_balance: raw.manual_post_processing,
+            zoom_supported: raw.max_digital_zoom_x1000 > 1000,
+            full_resolution_supported: raw.raw_sizes.len() > 1,
         }
     }
 }

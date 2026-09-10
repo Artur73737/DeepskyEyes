@@ -8,4 +8,8 @@ pub struct RawCapabilities {
     pub manual_sensor: bool,
     pub manual_post_processing: bool,
     pub logical_multi_camera: bool,
+    /// Size (w, h) annunciate dallo StreamConfigurationMap per il formato RAW.
+    pub raw_sizes: Vec<(u32, u32)>,
+    /// Zoom digitale massimo annunciato (×1000, 0 = sconosciuto).
+    pub max_digital_zoom_x1000: u32,
 }

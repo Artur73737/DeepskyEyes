@@ -7,4 +7,5 @@ pub mod configuration;
 pub mod state;
 pub mod discovery;
 pub mod logical;
+pub mod lens;
 pub mod controls;
