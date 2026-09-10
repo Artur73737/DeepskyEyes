@@ -19,7 +19,7 @@ impl CapabilityModel {
             manual_focus: false, // Legacy dump contains no focus capability evidence.
             manual_white_balance: false, // Individual WB modes must be discovered.
             zoom_supported: raw.max_digital_zoom_x1000 > 1000,
-            full_resolution_supported: false, // Multiple sizes do not prove maximum-resolution mode.
+            full_resolution_supported: raw.maximum_resolution_supported,
         }
     }
 }

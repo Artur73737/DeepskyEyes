@@ -1,6 +1,6 @@
-//! Comandi CLI divisi per argomento.
+//! Comandi CLI divisi per argomento; tutti operano su backend reali.
 pub mod discover;
 pub mod capabilities;
 pub mod camera;
-pub mod capture;
-pub mod sequence;
+pub mod acquire;
+pub mod serve;

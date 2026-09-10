@@ -6,6 +6,18 @@
 
 pub use deepsky_protocol::wire_types::LensType;
 
+/// Map an announced `lens_role` string to a lens. Unrecognized roles map to
+/// `Unknown` — roles are never guessed from IDs or positions.
+pub fn from_role(role: &str) -> LensType {
+    match role.to_ascii_lowercase().as_str() {
+        "wide" | "main" | "mainwide" => LensType::MainWide,
+        "ultrawide" | "ultra_wide" | "ultra-wide" => LensType::Ultrawide,
+        "telephoto" | "tele" => LensType::Telephoto,
+        "front" | "selfie" => LensType::Front,
+        _ => LensType::Unknown,
+    }
+}
+
 /// Ottica disponibile con il suo camera ID (logico o fisico).
 #[derive(Debug, Clone, Default)]
 pub struct CameraLens {

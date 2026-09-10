@@ -12,4 +12,7 @@ pub struct RawCapabilities {
     pub raw_sizes: Vec<(u32, u32)>,
     /// Zoom digitale massimo annunciato (×1000, 0 = sconosciuto).
     pub max_digital_zoom_x1000: u32,
+    /// Maximum-resolution / full-res mode explicitly announced (never inferred
+    /// from the number of reported sizes).
+    pub maximum_resolution_supported: bool,
 }

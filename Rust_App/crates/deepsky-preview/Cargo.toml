@@ -7,3 +7,6 @@ description = "DeepskyEyes preview pipeline: decode, histogram, stats (README §
 [lib]
 name = "deepsky_preview"
 path = "src/lib.rs"
+
+[dependencies]
+deepsky-camera = { path = "../deepsky-camera" }

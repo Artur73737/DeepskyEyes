@@ -1,4 +1,4 @@
-//! Trait Transport — implementazioni: Adb, UsbAccessory, Tcp, Mock.
+//! Trait Transport — implementazioni: Adb, UsbAccessory, Tcp.
 
 use crate::error::TransportError;
 

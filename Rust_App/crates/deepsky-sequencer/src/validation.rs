@@ -10,7 +10,10 @@ pub struct SequenceValidation {
     pub white_balance_fixed: bool,
     pub transport_ok: bool,
     pub clock_valid: bool,
-    pub available_bytes: u64,
+    /// Free bytes when the platform reports them. None means unknown: the
+    /// size check is skipped and the session create + write path proves
+    /// writability instead of pretending a number.
+    pub available_bytes: Option<u64>,
     /// Conservative estimate including RAW, metadata and overhead.
     pub bytes_per_frame: u64,
 }
@@ -30,7 +33,10 @@ impl SequenceValidation {
         if plan.frames == 0 || plan.exposure_ns == 0 || plan.sensitivity == 0 { return Err(ValidationFailed("empty or zero plan")); }
         if plan.exposure_ns.checked_add(plan.delay_ns).and_then(|v| v.checked_mul(u64::from(plan.frames))).is_none() { return Err(ValidationFailed("plan duration overflow")); }
         let required = self.bytes_per_frame.checked_mul(u64::from(plan.frames)).ok_or(ValidationFailed("storage estimate overflow"))?;
-        if self.bytes_per_frame == 0 || self.available_bytes < required { return Err(ValidationFailed("insufficient storage")); }
+        if self.bytes_per_frame == 0 { return Err(ValidationFailed("storage estimate overflow")); }
+        if let Some(available) = self.available_bytes {
+            if available < required { return Err(ValidationFailed("insufficient storage")); }
+        }
         let s = &request.settings;
         if s.exposure_ns != Some(plan.exposure_ns) || s.sensitivity != Some(u64::from(plan.sensitivity)) { return Err(ValidationFailed("plan/request mismatch")); }
         if capabilities.raw != Some(true) || !s.stream.as_ref().is_some_and(|s| matches!(s.format, PixelFormat::Raw16Le | PixelFormat::Dng)) { return Err(ValidationFailed("RAW stream required")); }

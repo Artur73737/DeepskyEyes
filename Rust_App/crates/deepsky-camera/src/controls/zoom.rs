@@ -4,7 +4,7 @@
 //! Super Res fino a 30x. I range reali vanno letti da
 //! `CONTROL_ZOOM_RATIO_RANGE` + `SCALER_AVAILABLE_MAX_DIGITAL_ZOOM`.
 
-/// Regione di crop normalizzata 0..1000 (placeholder del rect reale).
+/// Regione di crop in pixel del sensore (SCALER_CROP_REGION).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct CropRegion {
     pub x: u32,
@@ -29,7 +29,8 @@ impl ZoomControl {
         Self { requested_x1000: 1000, applied_x1000: None, reported_x1000: None, max_digital_zoom_x1000: 0, crop: None }
     }
 
-    /// true se il rapporto è nel range annunciato (se noto).
+    /// true only inside the announced range. Unknown maximum means only 1.0x
+    /// is allowed — zoom support is never assumed.
     pub fn is_supported(&self, ratio_x1000: u32) -> bool {
         if self.max_digital_zoom_x1000 == 0 {
             return false;

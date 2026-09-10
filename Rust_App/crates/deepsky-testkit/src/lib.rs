@@ -1,7 +1,7 @@
-//! Testkit: simulator + mock Android (README §88-89).
+//! Testkit: explicit SYNTHETIC simulator for development before/besides hardware (README §88-89).
+//! Nothing here claims to be a Pixel measurement; see SYNTHETIC_* markers.
 
 pub mod simulator;
-pub mod mock_android;
 pub mod fake_raw;
 pub mod failure_injection;
 pub mod fixtures;

@@ -9,6 +9,9 @@ name = "deepsky-eyes"
 path = "src/main.rs"
 
 [dependencies]
+serde_json = "1"
+deepsky-app = { path = "../deepsky-app" }
+deepsky-testkit = { path = "../deepsky-testkit" }
 deepsky-protocol = { path = "../deepsky-protocol" }
 deepsky-transport = { path = "../deepsky-transport" }
 deepsky-camera = { path = "../deepsky-camera" }

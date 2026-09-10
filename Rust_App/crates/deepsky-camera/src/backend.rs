@@ -9,4 +9,8 @@ pub trait CameraBackend {
     fn preview(&mut self) -> CameraResult<PreviewFrame>;
     fn thermal(&mut self) -> CameraResult<ThermalStatus>;
     fn close(&mut self) -> CameraResult<()>;
+    /// Cumulative (rx, tx) transport bytes when counted; None for direct links.
+    fn transport_stats(&self) -> Option<(u64, u64)> {
+        None
+    }
 }

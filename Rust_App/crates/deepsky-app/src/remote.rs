@@ -53,6 +53,7 @@ impl RemoteCameraBackend {
 }
 impl CameraBackend for RemoteCameraBackend {
     fn id(&self)->&str { &self.identity }
+    fn transport_stats(&self)->Option<(u64,u64)> { Some((self.rx_bytes,self.tx_bytes)) }
     fn discover(&mut self)->CameraResult<Vec<CameraCapabilities>> { self.call("discover",Value::Null) }
     fn open(&mut self, selection:&CameraSelection)->CameraResult<()> { self.call("open",json!(selection)) }
     fn configure(&mut self, request:&CaptureRequest, policy:ValidationPolicy)->CameraResult<ConfigurationOutcome> { self.call("configure",json!({"request":request,"policy":policy})) }

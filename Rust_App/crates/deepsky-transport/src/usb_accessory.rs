@@ -1,13 +1,13 @@
-//! USB accessory transport — candidato produzione (AOA).
+//! USB accessory transport — production candidate, NOT yet validated (README §27).
+//! Every operation explicitly reports Unsupported until AOA hardware validation
+//! lands. Nothing here pretends a connection succeeds.
 use crate::{error::TransportError, transport_trait::Transport};
 
-pub struct UsbAccessoryTransport {
-    connected: bool,
-}
+pub struct UsbAccessoryTransport;
 
 impl UsbAccessoryTransport {
     pub fn new() -> Self {
-        Self { connected: false }
+        Self
     }
 }
 
@@ -22,19 +22,12 @@ impl Transport for UsbAccessoryTransport {
         Err(TransportError::Unsupported)
     }
     fn send(&mut self, _data: &[u8]) -> Result<(), TransportError> {
-        if !self.connected {
-            return Err(TransportError::NotConnected);
-        }
-        Ok(())
+        Err(TransportError::Unsupported)
     }
     fn receive(&mut self) -> Result<Vec<u8>, TransportError> {
-        if !self.connected {
-            return Err(TransportError::NotConnected);
-        }
-        Ok(Vec::new())
+        Err(TransportError::Unsupported)
     }
     fn disconnect(&mut self) -> Result<(), TransportError> {
-        self.connected = false;
-        Ok(())
+        Err(TransportError::Unsupported)
     }
 }

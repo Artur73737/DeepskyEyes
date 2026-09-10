@@ -6,7 +6,6 @@ pub mod stats;
 pub mod adb;
 pub mod usb_accessory;
 pub mod tcp;
-pub mod mock;
 
 pub use transport_trait::Transport;
 pub use error::TransportError;

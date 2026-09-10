@@ -15,4 +15,3 @@ pub fn star_raw16(width: u32, height: u32, seed: u64, frame: u64, settings: &Cap
         } pixels.push((256.0 + (state >> 60) as f64 + signal * scale).min(65535.0) as u16);
     } } Ok(pixels)
 }
-pub fn fake_raw_bytes(width: u32, height: u32) -> Vec<u16> { star_raw16(width, height, 42, 0, &CaptureSettings::default()).unwrap_or_default() }

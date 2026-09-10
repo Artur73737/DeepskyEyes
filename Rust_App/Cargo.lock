@@ -1303,17 +1303,24 @@ dependencies = [
 name = "deepsky-cli"
 version = "0.1.0"
 dependencies = [
+ "deepsky-app",
  "deepsky-camera",
  "deepsky-diagnostics",
  "deepsky-protocol",
  "deepsky-sequencer",
  "deepsky-session",
+ "deepsky-testkit",
  "deepsky-transport",
+ "serde_json",
 ]
 
 [[package]]
 name = "deepsky-diagnostics"
 version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+]
 
 [[package]]
 name = "deepsky-metadata"
@@ -1326,6 +1333,9 @@ dependencies = [
 [[package]]
 name = "deepsky-preview"
 version = "0.1.0"
+dependencies = [
+ "deepsky-camera",
+]
 
 [[package]]
 name = "deepsky-protocol"
@@ -1350,6 +1360,7 @@ version = "0.1.0"
 dependencies = [
  "deepsky-camera",
  "deepsky-protocol",
+ "serde",
 ]
 
 [[package]]
