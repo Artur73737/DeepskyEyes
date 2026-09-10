@@ -16,7 +16,7 @@ puts mds docs file here in /doc/"".md
 
 **Primary target device:** Google Pixel 8 Pro
 
-**Android side:** Kotlin
+**Android side:** Kotlin + jetpack compose material UI 3 google
 
 **Desktop side:** Rust
 
