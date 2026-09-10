@@ -1,0 +1,17 @@
+[package]
+name = "deepsky-cli"
+version = "0.1.0"
+edition = "2021"
+description = "DeepskyEyes CLI first integration client (README §86-87)"
+
+[[bin]]
+name = "deepsky-eyes"
+path = "src/main.rs"
+
+[dependencies]
+deepsky-protocol = { path = "../deepsky-protocol" }
+deepsky-transport = { path = "../deepsky-transport" }
+deepsky-camera = { path = "../deepsky-camera" }
+deepsky-sequencer = { path = "../deepsky-sequencer" }
+deepsky-session = { path = "../deepsky-session" }
+deepsky-diagnostics = { path = "../deepsky-diagnostics" }

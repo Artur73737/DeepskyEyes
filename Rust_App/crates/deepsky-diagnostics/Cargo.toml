@@ -1,0 +1,9 @@
+[package]
+name = "deepsky-diagnostics"
+version = "0.1.0"
+edition = "2021"
+description = "DeepskyEyes diagnostics: logging, metrics, thermal (README §45, §68-70)"
+
+[lib]
+name = "deepsky_diagnostics"
+path = "src/lib.rs"

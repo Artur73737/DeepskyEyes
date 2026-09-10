@@ -1,0 +1,14 @@
+[package]
+name = "deepsky-testkit"
+version = "0.1.0"
+edition = "2021"
+description = "DeepskyEyes simulator and mock Android backend (README §88-89)"
+
+[lib]
+name = "deepsky_testkit"
+path = "src/lib.rs"
+
+[dependencies]
+deepsky-protocol = { path = "../deepsky-protocol" }
+deepsky-camera = { path = "../deepsky-camera" }
+deepsky-transport = { path = "../deepsky-transport" }

@@ -1,0 +1,12 @@
+[package]
+name = "deepsky-transport"
+version = "0.1.0"
+edition = "2021"
+description = "DeepskyEyes transport abstraction: ADB/USB/TCP/Mock (README §26-28)"
+
+[lib]
+name = "deepsky_transport"
+path = "src/lib.rs"
+
+[dependencies]
+deepsky-protocol = { path = "../deepsky-protocol" }

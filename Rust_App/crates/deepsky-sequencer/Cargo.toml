@@ -1,0 +1,13 @@
+[package]
+name = "deepsky-sequencer"
+version = "0.1.0"
+edition = "2021"
+description = "DeepskyEyes sequence engine and validation (README §35-37)"
+
+[lib]
+name = "deepsky_sequencer"
+path = "src/lib.rs"
+
+[dependencies]
+deepsky-protocol = { path = "../deepsky-protocol" }
+deepsky-camera = { path = "../deepsky-camera" }

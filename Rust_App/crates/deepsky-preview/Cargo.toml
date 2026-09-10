@@ -1,0 +1,9 @@
+[package]
+name = "deepsky-preview"
+version = "0.1.0"
+edition = "2021"
+description = "DeepskyEyes preview pipeline: decode, histogram, stats (README §20-21)"
+
+[lib]
+name = "deepsky_preview"
+path = "src/lib.rs"

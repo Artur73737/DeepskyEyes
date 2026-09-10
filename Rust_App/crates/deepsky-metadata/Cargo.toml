@@ -1,0 +1,9 @@
+[package]
+name = "deepsky-metadata"
+version = "0.1.0"
+edition = "2021"
+description = "DeepskyEyes frame/session metadata, clock, versioning (README §41, §71-74)"
+
+[lib]
+name = "deepsky_metadata"
+path = "src/lib.rs"

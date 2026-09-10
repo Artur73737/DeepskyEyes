@@ -1,0 +1,9 @@
+[package]
+name = "deepsky-protocol"
+version = "0.1.0"
+edition = "2021"
+description = "DeepskyEyes wire protocol: commands, responses, events, errors, framing (README §25, §29-33)"
+
+[lib]
+name = "deepsky_protocol"
+path = "src/lib.rs"

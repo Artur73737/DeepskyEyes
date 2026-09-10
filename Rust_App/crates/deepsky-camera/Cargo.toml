@@ -1,0 +1,12 @@
+[package]
+name = "deepsky-camera"
+version = "0.1.0"
+edition = "2021"
+description = "DeepskyEyes camera capability model and configuration (README §9-11, §50)"
+
+[lib]
+name = "deepsky_camera"
+path = "src/lib.rs"
+
+[dependencies]
+deepsky-protocol = { path = "../deepsky-protocol" }

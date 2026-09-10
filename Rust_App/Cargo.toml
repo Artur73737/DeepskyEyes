@@ -1,0 +1,22 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/deepsky-protocol",
+    "crates/deepsky-transport",
+    "crates/deepsky-camera",
+    "crates/deepsky-acquisition",
+    "crates/deepsky-sequencer",
+    "crates/deepsky-preview",
+    "crates/deepsky-raw",
+    "crates/deepsky-metadata",
+    "crates/deepsky-session",
+    "crates/deepsky-diagnostics",
+    "crates/deepsky-testkit",
+    "crates/deepsky-ui",
+    "crates/deepsky-app",
+    "crates/deepsky-cli",
+]
+
+# Dipendenze condivise (per ora solo std; aggiungere qui serde/tokio/gpui pinnato).
+# GPUI: pre-1.0 -> pinnare versione esatta in deepsky-ui quando si attiva la UI reale.
+# Vedi crates/deepsky-ui/src/gpui_isolation.rs e doc/11-gpui-desktop-ui.md

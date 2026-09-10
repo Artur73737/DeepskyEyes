@@ -1,0 +1,26 @@
+[package]
+name = "deepsky-app"
+version = "0.1.0"
+edition = "2021"
+description = "DeepskyEyes mission control desktop app (README §5, §75)"
+
+[[bin]]
+name = "deepsky-app"
+path = "src/main.rs"
+
+[lib]
+name = "deepsky_app"
+path = "src/lib.rs"
+
+[dependencies]
+deepsky-protocol = { path = "../deepsky-protocol" }
+deepsky-transport = { path = "../deepsky-transport" }
+deepsky-camera = { path = "../deepsky-camera" }
+deepsky-acquisition = { path = "../deepsky-acquisition" }
+deepsky-sequencer = { path = "../deepsky-sequencer" }
+deepsky-preview = { path = "../deepsky-preview" }
+deepsky-raw = { path = "../deepsky-raw" }
+deepsky-metadata = { path = "../deepsky-metadata" }
+deepsky-session = { path = "../deepsky-session" }
+deepsky-diagnostics = { path = "../deepsky-diagnostics" }
+deepsky-ui = { path = "../deepsky-ui" }

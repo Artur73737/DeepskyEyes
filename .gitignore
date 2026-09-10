@@ -1,0 +1,10 @@
+# Rust build output — mai committare target/
+target/
+Rust_App/target/
+**/target/
+# File temporanei editor/OS
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db

@@ -1,0 +1,19 @@
+[package]
+name = "deepsky-ui"
+version = "0.1.0"
+edition = "2021"
+description = "DeepskyEyes desktop UI main crate, GPUI isolated (README §22-23, §64-68)"
+
+[lib]
+name = "deepsky_ui"
+path = "src/lib.rs"
+
+[dependencies]
+deepsky-camera = { path = "../deepsky-camera" }
+deepsky-sequencer = { path = "../deepsky-sequencer" }
+deepsky-preview = { path = "../deepsky-preview" }
+deepsky-session = { path = "../deepsky-session" }
+deepsky-diagnostics = { path = "../deepsky-diagnostics" }
+deepsky-metadata = { path = "../deepsky-metadata" }
+# GPUI e' pre-1.0: pinnare versione esatta quando si attiva la UI reale.
+# gpui = "=0.1.0"

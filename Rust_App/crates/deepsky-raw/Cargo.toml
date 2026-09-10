@@ -1,0 +1,9 @@
+[package]
+name = "deepsky-raw"
+version = "0.1.0"
+edition = "2021"
+description = "DeepskyEyes RAW/DNG handling (README §12-13)"
+
+[lib]
+name = "deepsky_raw"
+path = "src/lib.rs"
