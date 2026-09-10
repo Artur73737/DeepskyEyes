@@ -4,4 +4,5 @@ pub mod sensitivity;
 pub mod focus;
 pub mod white_balance;
 pub mod processing;
+pub mod resolution;
 pub mod zoom;
