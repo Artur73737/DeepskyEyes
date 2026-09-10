@@ -12,7 +12,8 @@ pub struct StreamSize {
     pub width: u32,
     /// Altezza in pixel (es. 3072 una volta misurata, mai assunta).
     pub height: u32,
-    /// Formato: 0=RAW_SENSOR, 1=YUV_420_888, 2=JPEG, 3=PRIVATE (placeholder).
+    /// Formato come codice locale legacy (0=RAW_SENSOR, 1=YUV_420_888, 2=JPEG,
+    /// 3=PRIVATE). Il percorso reale di acquisizione usa model::PixelFormat.
     pub format: u8,
     /// true se è modalità binning/ridotta, false se full-res (dal dump).
     pub binned: bool,

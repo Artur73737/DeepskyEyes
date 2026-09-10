@@ -10,7 +10,8 @@ pub mod sequence;
 pub mod storage;
 pub mod diagnostics;
 
-/// Id messaggio per famiglia (placeholder stabili).
+/// Message family ids. Provisional taxonomy for §30; frozen only after
+/// hardware validation. The active RPC contract lives in rpc.rs.
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u16)]
 pub enum MessageFamily {
