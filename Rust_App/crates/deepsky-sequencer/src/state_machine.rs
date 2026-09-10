@@ -12,4 +12,5 @@ pub enum SequenceState {
     Error,
     Recovering,
     FatalError,
+    Stopped,
 }

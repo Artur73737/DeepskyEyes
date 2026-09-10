@@ -19,8 +19,7 @@ impl Default for UsbAccessoryTransport {
 
 impl Transport for UsbAccessoryTransport {
     fn connect(&mut self) -> Result<(), TransportError> {
-        self.connected = true;
-        Ok(())
+        Err(TransportError::Unsupported)
     }
     fn send(&mut self, _data: &[u8]) -> Result<(), TransportError> {
         if !self.connected {

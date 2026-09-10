@@ -7,3 +7,9 @@ pub mod gpui_isolation;
 pub mod pages;
 pub mod components;
 pub mod widgets;
+pub mod bridge;
+#[cfg(feature = "desktop")]
+mod desktop;
+pub use bridge::*;
+#[cfg(feature = "desktop")]
+pub use desktop::run;

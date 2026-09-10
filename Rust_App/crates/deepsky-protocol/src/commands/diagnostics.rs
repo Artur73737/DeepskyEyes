@@ -1,5 +1,5 @@
 //! DIAGNOSTICS: GET_LOG, GET_METRICS, GET_THERMAL_STATUS, GET_CAMERA_RESULT.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq)]
 pub enum DiagnosticsCommand {
     GetLog { lines: u32 },
     GetMetrics,

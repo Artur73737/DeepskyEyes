@@ -7,3 +7,7 @@ description = "DeepskyEyes RAW/DNG handling (README §12-13)"
 [lib]
 name = "deepsky_raw"
 path = "src/lib.rs"
+
+[dependencies]
+sha2.workspace = true
+serde.workspace = true

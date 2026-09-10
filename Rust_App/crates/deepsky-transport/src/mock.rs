@@ -31,7 +31,7 @@ impl Transport for MockTransport {
         if !self.connected {
             return Err(TransportError::NotConnected);
         }
-        Ok(self.inbox.pop_front().unwrap_or_default())
+        self.inbox.pop_front().ok_or(TransportError::Timeout)
     }
     fn disconnect(&mut self) -> Result<(), TransportError> {
         self.connected = false;

@@ -10,3 +10,4 @@ pub mod responses;
 pub mod events;
 pub mod errors;
 pub mod wire_types;
+pub mod rpc;

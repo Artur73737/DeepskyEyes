@@ -2,7 +2,7 @@
 
 use crate::version::PROTOCOL_VERSION;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Header {
     pub protocol_version: u16,
     pub message_type: u16,

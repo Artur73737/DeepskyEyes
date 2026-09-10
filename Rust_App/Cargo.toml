@@ -17,6 +17,11 @@ members = [
     "crates/deepsky-cli",
 ]
 
-# Dipendenze condivise (per ora solo std; aggiungere qui serde/tokio/gpui pinnato).
+[workspace.dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+
+# Dipendenze condivise.
 # GPUI: pre-1.0 -> pinnare versione esatta in deepsky-ui quando si attiva la UI reale.
 # Vedi crates/deepsky-ui/src/gpui_isolation.rs e doc/11-gpui-desktop-ui.md

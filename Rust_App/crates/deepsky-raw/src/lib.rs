@@ -5,3 +5,4 @@ pub mod bayer;
 pub mod dng_writer;
 pub mod checksum;
 pub mod metadata;
+pub mod storage;

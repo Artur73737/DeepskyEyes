@@ -32,7 +32,7 @@ impl ZoomControl {
     /// true se il rapporto è nel range annunciato (se noto).
     pub fn is_supported(&self, ratio_x1000: u32) -> bool {
         if self.max_digital_zoom_x1000 == 0 {
-            return ratio_x1000 >= 1000;
+            return false;
         }
         (1000..=self.max_digital_zoom_x1000).contains(&ratio_x1000)
     }

@@ -7,3 +7,8 @@ description = "DeepskyEyes wire protocol: commands, responses, events, errors, f
 [lib]
 name = "deepsky_protocol"
 path = "src/lib.rs"
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true

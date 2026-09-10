@@ -6,3 +6,5 @@ pub mod naming;
 pub mod manifest;
 pub mod recovery;
 pub mod calibration;
+pub mod store;
+pub use store::SessionStore;

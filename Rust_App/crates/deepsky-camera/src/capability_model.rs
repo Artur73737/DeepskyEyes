@@ -16,10 +16,10 @@ impl CapabilityModel {
         Self {
             raw: raw.raw_supported,
             manual_exposure: raw.manual_sensor,
-            manual_focus: raw.manual_sensor,
-            manual_white_balance: raw.manual_post_processing,
+            manual_focus: false, // Legacy dump contains no focus capability evidence.
+            manual_white_balance: false, // Individual WB modes must be discovered.
             zoom_supported: raw.max_digital_zoom_x1000 > 1000,
-            full_resolution_supported: raw.raw_sizes.len() > 1,
+            full_resolution_supported: false, // Multiple sizes do not prove maximum-resolution mode.
         }
     }
 }

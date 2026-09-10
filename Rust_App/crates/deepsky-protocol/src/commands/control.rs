@@ -1,5 +1,5 @@
 //! CONTROL: exposure, sensitivity, frame, focus, AF, AWB, gains, zoom, crop, processing.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq)]
 pub enum ControlCommand {
     SetExposure { exposure_ns: u64 },
     SetSensitivity { iso: u32 },
@@ -14,14 +14,14 @@ pub enum ControlCommand {
     SetProcessingMode { edge: u8, noise: u8, hot_pixel: u8, shading: u8, tonemap: u8 },
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AfMode {
     Off,
     Auto,
     ContinuousPicture,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AwbMode {
     Off,
     Auto,

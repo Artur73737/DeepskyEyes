@@ -9,5 +9,8 @@ name = "deepsky_acquisition"
 path = "src/lib.rs"
 
 [dependencies]
+serde_json.workspace = true
+deepsky-metadata = { path = "../deepsky-metadata" }
+deepsky-raw = { path = "../deepsky-raw" }
 deepsky-protocol = { path = "../deepsky-protocol" }
 deepsky-camera = { path = "../deepsky-camera" }

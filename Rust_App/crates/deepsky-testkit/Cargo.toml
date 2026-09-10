@@ -9,6 +9,8 @@ name = "deepsky_testkit"
 path = "src/lib.rs"
 
 [dependencies]
+serde.workspace = true
+serde_json.workspace = true
 deepsky-protocol = { path = "../deepsky-protocol" }
 deepsky-camera = { path = "../deepsky-camera" }
 deepsky-transport = { path = "../deepsky-transport" }

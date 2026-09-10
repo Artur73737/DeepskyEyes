@@ -1,6 +1,6 @@
 //! Eventi asincroni Android -> PC (README §31).
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq)]
 pub enum Event {
     DeviceConnected,
     DeviceDisconnected,

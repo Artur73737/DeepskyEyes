@@ -13,6 +13,10 @@ name = "deepsky_app"
 path = "src/lib.rs"
 
 [dependencies]
+serde.workspace = true
+serde_json.workspace = true
+deepsky-testkit = { path = "../deepsky-testkit" }
+png = "0.18"
 deepsky-protocol = { path = "../deepsky-protocol" }
 deepsky-transport = { path = "../deepsky-transport" }
 deepsky-camera = { path = "../deepsky-camera" }
@@ -24,3 +28,7 @@ deepsky-metadata = { path = "../deepsky-metadata" }
 deepsky-session = { path = "../deepsky-session" }
 deepsky-diagnostics = { path = "../deepsky-diagnostics" }
 deepsky-ui = { path = "../deepsky-ui" }
+
+[features]
+default = []
+desktop = ["deepsky-ui/desktop"]

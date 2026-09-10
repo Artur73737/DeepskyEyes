@@ -9,5 +9,6 @@ name = "deepsky_sequencer"
 path = "src/lib.rs"
 
 [dependencies]
+serde = { workspace = true }
 deepsky-protocol = { path = "../deepsky-protocol" }
 deepsky-camera = { path = "../deepsky-camera" }

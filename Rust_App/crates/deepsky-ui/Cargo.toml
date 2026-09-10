@@ -15,5 +15,8 @@ deepsky-preview = { path = "../deepsky-preview" }
 deepsky-session = { path = "../deepsky-session" }
 deepsky-diagnostics = { path = "../deepsky-diagnostics" }
 deepsky-metadata = { path = "../deepsky-metadata" }
-# GPUI e' pre-1.0: pinnare versione esatta quando si attiva la UI reale.
-# gpui = "=0.1.0"
+gpui = { version = "=0.2.2", optional = true }
+
+[features]
+default = []
+desktop = ["dep:gpui"]

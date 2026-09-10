@@ -1,6 +1,8 @@
 //! Camera capability model — mai hard-codare (README §2, §9-11).
 
 pub mod backend;
+pub mod model;
+pub use model::*;
 pub mod capabilities;
 pub mod capability_model;
 pub mod configuration;

@@ -1,5 +1,5 @@
 //! PREVIEW: START, STOP, SET_CONFIGURATION.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq)]
 pub enum PreviewCommand {
     StartPreview,
     StopPreview,
