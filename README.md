@@ -4,6 +4,12 @@
 
 > A precision-oriented astrophotography control platform that turns a Google Pixel into a remotely controlled astronomical imaging instrument, with Android/Camera2 providing direct camera access and a native Rust desktop application providing control, preview, acquisition, sequencing, storage, diagnostics and future image-processing capabilities.
 
+## Screenshots
+
+| Desktop app (Rust + GPUI) | Android app (Kotlin + Camera2) |
+|---|---|
+| ![DeepskyEyes desktop app](doc/desktop.png) | ![DeepskyEyes Android camera station](doc/mobile.png) |
+
 ---
 
 ## doc/
