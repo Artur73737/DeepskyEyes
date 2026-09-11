@@ -100,6 +100,8 @@ pub struct UiSnapshot {
     pub resolutions: Vec<(u32, u32)>,
     pub resolution: (u32, u32),
     pub raw_supported: bool,
+    /// RAW requested for the next configure (pending intent). The applied
+    /// stream format stays visible in diagnostics/statistics.
     pub raw_enabled: bool,
     pub locked: bool,
     pub exposure_ns: u64,

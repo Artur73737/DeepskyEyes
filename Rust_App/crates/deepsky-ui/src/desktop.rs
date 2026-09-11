@@ -134,6 +134,8 @@ struct Desktop {
     state: UiSnapshot,
     actions: Sender<UiAction>,
     page: Page,
+    /// Active focus-slider drag: (grab x in window px, value at grab).
+    focus_drag: Option<(f32, f32)>,
     image: Option<Arc<Image>>,
     image_revision: Option<u64>,
     preview_cover: bool,
@@ -187,6 +189,7 @@ impl Desktop {
             state,
             actions,
             page: Page::Dashboard,
+            focus_drag: None,
             image: None,
             image_revision: None,
             preview_cover: true,
@@ -323,23 +326,33 @@ impl Desktop {
         enabled: bool,
         cx: &mut Context<Self>,
     ) -> Stateful<Div> {
-        let knob = div().size(px(15.)).rounded(px(999.)).bg(rgb(TEXT));
+        let id = id.into();
+        // Track 40x21, knob 15: slides 3 <-> 22 px with a 150 ms ease.
+        // The animation id embeds the state so every flip replays from rest.
+        let knob = div()
+            .size(px(15.))
+            .rounded(px(999.))
+            .bg(rgb(TEXT))
+            .absolute()
+            .top(px(3.))
+            .with_animation(
+                SharedString::from(format!("{id}-knob-{on}")),
+                Animation::new(Duration::from_millis(150)).with_easing(ease_in_out),
+                move |el, delta| {
+                    let from = if on { 3.0 } else { 22.0 };
+                    let to = if on { 22.0 } else { 3.0 };
+                    el.left(px(from + (to - from) * delta))
+                },
+            );
         div()
-            .id(id.into())
+            .id(id)
             .w(px(40.))
             .h(px(21.))
+            .relative()
             .rounded(px(999.))
             .bg(rgb(if on { TOGGLE_ON } else { TOGGLE_OFF }))
-            .p(px(3.))
-            .flex()
-            .flex_row()
-            .items_center()
             .when(enabled, |d| d.cursor_pointer())
-            .child(if on {
-                div().flex_1().child(div()).child(knob).into_any_element()
-            } else {
-                div().flex().flex_row().items_center().child(knob).child(div().flex_1()).into_any_element()
-            })
+            .child(knob)
             .on_click(cx.listener(move |view, _, _, cx| {
                 if enabled {
                     view.send(action.clone(), cx);
@@ -1489,6 +1502,65 @@ impl Desktop {
                 ))
                 .into_any_element(),
         );
+        // Focus slider: relative drag over ~200 px maps the full announced
+        // range (no layout measurement needed). Emits only on real change.
+        if let Some((lo, hi)) = s.focus_range {
+            let span = (hi - lo).max(f32::EPSILON);
+            let frac = ((s.focus_diopters - lo) / span).clamp(0.0, 1.0);
+            let can_edit = edit;
+            let current = s.focus_diopters;
+            items.push(
+                div()
+                    .id("focus-slider")
+                    .flex()
+                    .flex_row()
+                    .items_center()
+                    .h(px(22.))
+                    .cursor_pointer()
+                    .child(
+                        div()
+                            .flex_1()
+                            .h(px(6.))
+                            .rounded(px(999.))
+                            .bg(rgb(PANEL_ACTIVE))
+                            .child(
+                                div()
+                                    .h(px(6.))
+                                    .rounded(px(999.))
+                                    .bg(rgb(BLUE))
+                                    .w(relative(frac)),
+                            ),
+                    )
+                    .on_mouse_down(
+                        MouseButton::Left,
+                        cx.listener(move |view, event: &MouseDownEvent, _, _| {
+                            if can_edit {
+                                view.focus_drag =
+                                    Some((f32::from(event.position.x), current));
+                            }
+                        }),
+                    )
+                    .on_mouse_move(cx.listener(move |view, event: &MouseMoveEvent, _, cx| {
+                        match event.pressed_button {
+                            Some(MouseButton::Left) => {
+                                if !can_edit {
+                                    return;
+                                }
+                                if let Some((start_x, start_v)) = view.focus_drag {
+                                    let next = (start_v
+                                        + (f32::from(event.position.x) - start_x) / 200.0 * span)
+                                        .clamp(lo, hi);
+                                    if (next - current).abs() > span / 1000.0 {
+                                        view.send(UiAction::SetFocus(next), cx);
+                                    }
+                                }
+                            }
+                            _ => view.focus_drag = None,
+                        }
+                    }))
+                    .into_any_element(),
+            );
+        }
         items.push(Self::row("White balance", format!("{} K", s.white_balance_kelvin)).into_any_element());
         items.push(
             div()

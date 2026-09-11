@@ -15,7 +15,7 @@ use std::{
 
 use deepsky_camera::{
     backend::CameraBackend,
-    model::{CameraCapabilities, CapturedFrame, ErrorCode, ThermalStatus},
+    model::{CameraCapabilities, CapturedFrame, ErrorCode, ThermalStatus, ValidationPolicy},
 };
 use deepsky_preview::{decoder::preview_to_rgb8, histogram::Histogram};
 use deepsky_sequencer::{recovery::RetryPolicy, runner::SequenceRunner, state_machine::SequenceState};
@@ -24,7 +24,7 @@ use deepsky_ui::{CameraChoice, FrameType, PreviewImage, SequenceStatus, SessionS
 
 use crate::{
     controller::{
-        capture_and_commit, check_thermal, connect_source, encode_png_rgb8, now_unix_ns,
+        build_request, capture_and_commit, check_thermal, connect_source, encode_png_rgb8, now_unix_ns,
         pick_camera, prepare_run, submit_frame, AcquisitionOptions, ControllerError, PreparedRun,
         APP_VERSION,
     },
@@ -87,6 +87,9 @@ type CaptureThreadOut = (
 struct Worker {
     backend: Option<Box<dyn CameraBackend + Send>>,
     source: SourceKind,
+    /// Camera id currently open on the backend, if any. Single source of
+    /// truth for open-state: prevents double-open across select/run paths.
+    open_camera_id: Option<String>,
     caps: Vec<CameraCapabilities>,
     camera_id: String,
     outcome: Option<deepsky_camera::model::ConfigurationOutcome>,
@@ -125,6 +128,7 @@ impl Worker {
         Self {
             backend: None,
             source: SourceKind::Phone,
+            open_camera_id: None,
             caps: vec![],
             camera_id: String::new(),
             outcome: None,
@@ -283,7 +287,6 @@ impl Worker {
                         .unwrap_or_else(|| "connected".into());
                     self.thermal = self.backend.as_mut().and_then(|b| b.thermal().ok());
                     self.message = format!("connected: {label}");
-                    self.refresh_preview();
                 }
                 Err(e) => self.fail(format!("discover: {e}")),
             },
@@ -300,10 +303,23 @@ impl Worker {
         }
         self.caps.clear();
         self.camera_id.clear();
+        self.open_camera_id = None;
         self.outcome = None;
         self.device_label = "No device connected".into();
         self.frame_progress = None;
         self.message = "disconnected".into();
+    }
+
+    /// Close the camera if the worker opened one. Run paths call this before
+    /// prepare_run (which always opens fresh), so double-open is impossible.
+    fn ensure_closed(&mut self) -> Result<(), String> {
+        if self.open_camera_id.is_some() {
+            let backend = self.backend.as_mut().ok_or_else(|| "not connected".to_string())?;
+            backend.close().map_err(|e| format!("close: {e}"))?;
+            self.open_camera_id = None;
+            self.outcome = None;
+        }
+        Ok(())
     }
 
     fn select_camera(&mut self, id: String) {
@@ -311,23 +327,53 @@ impl Worker {
             self.fail("stop the sequence before switching camera".into());
             return;
         }
-        let Some(backend) = self.backend.as_mut() else {
-            self.fail("not connected".into());
+        if self.open_camera_id.as_deref() == Some(id.as_str()) {
+            self.camera_id = id.clone();
+            self.message = format!("camera {id} already open");
+            self.refresh_preview();
             return;
-        };
+        }
         if !self.caps.iter().any(|c| c.camera_id == id) {
             self.fail(format!("camera '{id}' not announced"));
             return;
         }
+        if let Err(e) = self.ensure_closed() {
+            self.fail(e);
+            return;
+        }
+        let caps = match self.require_open() {
+            Ok(caps) => caps.clone(),
+            Err(e) => {
+                self.fail(e);
+                return;
+            }
+        };
+        let opts = self.options(1);
+        let backend = self.backend.as_mut().expect("connected");
         let selection = deepsky_camera::model::CameraSelection { camera_id: id.clone(), physical_id: None };
-        match backend.open(&selection) {
-            Ok(()) => {
+        if let Err(e) = backend.open(&selection) {
+            self.open_camera_id = None;
+            self.fail(format!("open {id}: {e}"));
+            return;
+        }
+        self.open_camera_id = Some(id.clone());
+        // Configure immediately with the pending settings so live preview
+        // starts now instead of only after the first capture.
+        match build_request(&caps, &opts.spec())
+            .map_err(|e| e.to_string())
+            .and_then(|request| backend.configure(&request, ValidationPolicy::Reject).map_err(|e| e.to_string()))
+        {
+            Ok(outcome) => {
                 self.camera_id = id.clone();
-                self.outcome = None;
-                self.message = format!("camera {id} open");
+                self.outcome = Some(outcome);
+                self.message = format!("camera {id} open, live preview on");
                 self.refresh_preview();
             }
-            Err(e) => self.fail(format!("open {id}: {e}")),
+            Err(e) => {
+                let _ = backend.close();
+                self.open_camera_id = None;
+                self.fail(format!("configure {id}: {e}"));
+            }
         }
     }
 
@@ -479,6 +525,10 @@ impl Worker {
             }
         };
         let opts = self.options(self.frames_total);
+        if let Err(e) = self.ensure_closed() {
+            self.fail(e);
+            return;
+        }
         let backend = self.backend.as_mut().expect("connected");
         let prepared = match prepare_run(&mut **backend, &caps, &opts, now) {
             Ok(prepared) => prepared,
@@ -537,6 +587,10 @@ impl Worker {
             }
         };
         let opts = self.options(1);
+        if let Err(e) = self.ensure_closed() {
+            self.fail(e);
+            return;
+        }
         let backend = self.backend.as_mut().expect("connected");
         let mut prepared = match prepare_run(&mut **backend, &caps, &opts, now) {
             Ok(prepared) => prepared,
@@ -984,10 +1038,10 @@ impl Worker {
             snap.applied_exposure_ns = applied.exposure_ns;
             snap.applied_iso = applied.sensitivity.map(|v| v as u32);
             snap.resolution = applied.stream.as_ref().map(|s| (s.width, s.height)).unwrap_or((0, 0));
-            snap.raw_enabled = applied.stream.as_ref().is_some_and(|s| {
-                matches!(s.format, deepsky_camera::model::PixelFormat::Raw16Le | deepsky_camera::model::PixelFormat::Dng)
-            });
         }
+        // Toggle shows the pending request (applies at next configure);
+        // the applied stream stays visible in diagnostics/statistics.
+        snap.raw_enabled = self.raw;
         snap.locked = self.focus_locked;
         snap.exposure_ns = self.exposure_ns;
         snap.iso = self.sensitivity;
@@ -1105,6 +1159,47 @@ mod tests {
         assert_eq!(worker.message, "exposure range not announced");
         worker.set_zoom(0.5);
         assert!(worker.message.contains("below 1.0x"));
+    }
+
+    #[test]
+    fn preview_pipeline_delivers_image_and_histogram() {
+        let dir = std::env::temp_dir().join(format!("deepsky-preview-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        let mut worker = Worker::new();
+        worker.connect_with(Source::Simulator { realtime: false });
+        assert!(worker.backend.is_some(), "simulator must connect");
+        let id = worker.camera_id.clone();
+        assert!(!id.is_empty(), "discovery must pick a camera");
+        worker.select_camera(id);
+        worker.destination = dir.clone();
+        worker.capture_one();
+        assert!(worker.preview.is_some(), "preview image missing: {}", worker.message);
+        assert_eq!(worker.histogram.len(), 768, "RGB histogram expected");
+        assert!(worker.preview_mean.is_some(), "preview mean missing");
+        assert_eq!(worker.preview_failures, 0, "message: {}", worker.message);
+        let png = worker.preview.as_ref().unwrap();
+        assert!(png.bytes.starts_with(b"\x89PNG"), "PNG magic expected");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn select_tracks_open_state_and_never_double_opens() {
+        let dir = std::env::temp_dir().join(format!("deepsky-reopen-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        let mut worker = Worker::new();
+        worker.connect_with(Source::Simulator { realtime: false });
+        let id = worker.camera_id.clone();
+        worker.select_camera(id.clone());
+        assert_eq!(worker.open_camera_id.as_deref(), Some(id.as_str()));
+        assert!(worker.preview.is_some(), "live preview must start on select: {}", worker.message);
+        // Selecting again is a no-op, not a double open.
+        worker.select_camera(id.clone());
+        assert!(worker.message.contains("already open"), "got: {}", worker.message);
+        // A capture closes first, then prepares fresh: no InvalidState.
+        worker.destination = dir.clone();
+        worker.capture_one();
+        assert!(worker.preview.is_some(), "capture must succeed after select: {}", worker.message);
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]
