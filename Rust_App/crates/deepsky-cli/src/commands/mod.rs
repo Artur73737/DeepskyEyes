@@ -4,3 +4,4 @@ pub mod capabilities;
 pub mod camera;
 pub mod acquire;
 pub mod serve;
+pub mod preview;

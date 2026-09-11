@@ -28,6 +28,7 @@ fn options(args: &[String], frames: u32) -> Result<AcquisitionOptions, String> {
         sensitivity: crate::flag_or(args, "sensitivity", 800)?,
         focus_millidiopters: crate::flag_or(args, "focus-mdiopt", 0)?,
         wb_kelvin: crate::flag_or(args, "wb-kelvin", 5_000)?,
+        wb_preset: crate::flag(args, "wb-preset"),
         delay_ns: crate::flag_or(args, "delay-ns", 1_000_000_000)?,
         focus_locked: true,
         zoom_x1000: None,

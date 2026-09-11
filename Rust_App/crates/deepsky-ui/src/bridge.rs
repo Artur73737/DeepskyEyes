@@ -21,6 +21,8 @@ pub enum UiAction {
     SetIso(u32),
     SetFocus(f32),
     SetWhiteBalance(u32),
+    /// Announced WB preset name (e.g. "daylight"); validated, never assumed.
+    SetWbPreset(String),
     SetZoom(f32),
     SetRaw(bool),
     SetResolution(u32, u32),
@@ -114,6 +116,9 @@ pub struct UiSnapshot {
     pub focus_range: Option<(f32, f32)>,
     pub white_balance_kelvin: u32,
     pub manual_white_balance: bool,
+    /// Pending WB preset; announced preset names the device supports.
+    pub wb_preset: String,
+    pub wb_presets: Vec<String>,
     pub zoom: f32,
     pub zoom_range: Option<(f32, f32)>,
     pub frames_done: u32,
@@ -163,6 +168,8 @@ impl Default for UiSnapshot {
             focus_range: None,
             white_balance_kelvin: 5000,
             manual_white_balance: false,
+            wb_preset: "".into(),
+            wb_presets: vec![],
             zoom: 1.,
             zoom_range: None,
             frames_done: 0,

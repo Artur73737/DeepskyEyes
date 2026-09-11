@@ -25,6 +25,7 @@ fn run(args: Vec<String>) -> Result<(), String> {
         "capture" => commands::acquire::run_capture(&source, rest),
         "sequence" => commands::acquire::run_sequence(&source, rest),
         "serve" => commands::serve::run(rest),
+        "preview" => commands::preview::run(&source, rest),
         "help" | "--help" | "-h" => {
             print_help();
             Ok(())
@@ -102,4 +103,5 @@ fn print_help() {
     println!("            [--exposure-ns N] [--sensitivity N] [--focus-mdiopt N] [--wb-kelvin N]");
     println!("  sequence --out DIR --project NAME --frames N [same options] [--delay-ns N]");
     println!("  serve [--port N]                serve the SYNTHETIC simulator on TCP loopback");
+    println!("  preview [--camera ID] [--out FILE] [--exposure-ns N] [--sensitivity N]");
 }

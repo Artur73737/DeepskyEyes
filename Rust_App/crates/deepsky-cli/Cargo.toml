@@ -15,6 +15,7 @@ deepsky-testkit = { path = "../deepsky-testkit" }
 deepsky-protocol = { path = "../deepsky-protocol" }
 deepsky-transport = { path = "../deepsky-transport" }
 deepsky-camera = { path = "../deepsky-camera" }
+deepsky-preview = { path = "../deepsky-preview" }
 deepsky-sequencer = { path = "../deepsky-sequencer" }
 deepsky-session = { path = "../deepsky-session" }
 deepsky-diagnostics = { path = "../deepsky-diagnostics" }

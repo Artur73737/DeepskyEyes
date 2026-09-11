@@ -101,6 +101,19 @@ fn fmt_integration(frames: u32, exposure_ns: u64) -> String {
     format!("{} s ({} min)", seconds, seconds / 60)
 }
 
+/// Next announced WB preset after the current one (wraps around).
+fn next_wb_preset(presets: &[String], current: &str) -> String {
+    if presets.is_empty() {
+        return current.to_string();
+    }
+    let pos = presets
+        .iter()
+        .position(|m| m == current)
+        .map(|i| (i + 1) % presets.len())
+        .unwrap_or(0);
+    presets[pos].clone()
+}
+
 // ---------------------------------------------------------------------------
 // View state.
 // ---------------------------------------------------------------------------
@@ -134,13 +147,120 @@ struct Desktop {
     state: UiSnapshot,
     actions: Sender<UiAction>,
     page: Page,
-    /// Active focus-slider drag: (grab x in window px, value at grab).
-    focus_drag: Option<(f32, f32)>,
+    /// Active slider drag: which slider, grab x in window px, start fraction.
+    slider_drag: Option<(SliderId, f32, f64)>,
     image: Option<Arc<Image>>,
     image_revision: Option<u64>,
     preview_cover: bool,
     error: String,
     _poll: Task<()>,
+}
+
+/// Slider target. One active drag at a time; ids keep sliders apart.
+#[derive(Clone, Copy, PartialEq)]
+enum SliderId {
+    Exposure,
+    Iso,
+    Focus,
+    Zoom,
+    Frames,
+}
+
+/// Value slider over an announced numeric range. Relative drag: ~200 px
+/// covers the full span (logarithmic when `log`, for wide ranges like
+/// exposure or ISO). Emits only on real change; the runtime validates
+/// every request against the announced range.
+#[allow(clippy::too_many_arguments)]
+fn slider(
+    dom_id: &'static str,
+    id: SliderId,
+    range: Option<(f64, f64)>,
+    value: f64,
+    log: bool,
+    enabled: bool,
+    cx: &mut Context<Desktop>,
+) -> Stateful<Div> {
+    fn map(lo: f64, hi: f64, log: bool, frac: f64) -> f64 {
+        let t = frac.clamp(0.0, 1.0);
+        if log && lo > 0.0 && hi > lo {
+            lo * (hi / lo).powf(t)
+        } else {
+            lo + t * (hi - lo).max(f64::EPSILON)
+        }
+    }
+    fn unmap(lo: f64, hi: f64, log: bool, value: f64) -> f64 {
+        if log && lo > 0.0 && hi > lo && value > 0.0 {
+            ((value / lo).ln() / (hi / lo).ln()).clamp(0.0, 1.0)
+        } else {
+            ((value - lo) / (hi - lo).max(f64::EPSILON)).clamp(0.0, 1.0)
+        }
+    }
+    let (lo, hi) = range.unwrap_or((0.0, 1.0));
+    let span = (hi - lo).max(f64::EPSILON);
+    let enabled = enabled && range.is_some();
+    let frac = unmap(lo, hi, log, value) as f32;
+    let mk = move |v: f64| match id {
+        SliderId::Exposure => UiAction::SetExposure(v as u64),
+        SliderId::Iso => UiAction::SetIso(v as u32),
+        SliderId::Focus => UiAction::SetFocus(v as f32),
+        SliderId::Zoom => UiAction::SetZoom(v as f32),
+        SliderId::Frames => UiAction::SetFrameCount(v.max(1.0) as u32),
+    };
+    div()
+        .id(dom_id)
+        .flex()
+        .flex_row()
+        .items_center()
+        .h(px(22.))
+        .cursor_pointer()
+        .child(
+            div()
+                .flex_1()
+                .h(px(6.))
+                .rounded(px(999.))
+                .bg(rgb(PANEL_ACTIVE))
+                .child(
+                    div()
+                        .h(px(6.))
+                        .rounded(px(999.))
+                        .bg(rgb(BLUE))
+                        .w(relative(frac)),
+                ),
+        )
+        .on_mouse_down(
+            MouseButton::Left,
+            cx.listener(move |view, event: &MouseDownEvent, _, _| {
+                if enabled {
+                    view.slider_drag =
+                        Some((id, f32::from(event.position.x), unmap(lo, hi, log, value)));
+                }
+            }),
+        )
+        .on_mouse_move(cx.listener(move |view, event: &MouseMoveEvent, _, cx| {
+            match event.pressed_button {
+                Some(MouseButton::Left) => {
+                    if !enabled {
+                        return;
+                    }
+                    if let Some((drag_id, start_x, start_frac)) = view.slider_drag {
+                        if drag_id != id {
+                            return;
+                        }
+                        let here = start_frac
+                            + (f64::from(f32::from(event.position.x)) - start_x as f64) / 200.0;
+                        let next = map(lo, hi, log, (here * 200.0).round() / 200.0);
+                        if (next - value).abs() > span / 2000.0 {
+                            view.send(mk(next), cx);
+                        }
+                    }
+                }
+                _ => {
+                    if view.slider_drag.is_some_and(|(drag_id, _, _)| drag_id == id) {
+                        view.slider_drag = None;
+                    }
+                }
+            }
+        }))
 }
 
 impl Desktop {
@@ -168,7 +288,18 @@ impl Desktop {
                 }
                 if view
                     .update(cx, |view, cx| {
-                        if let Some(s) = latest {
+                        if let Some(mut s) = latest {
+                            // Camera I/O can outlive several pointer events. Do not
+                            // roll the active drag back to an older worker value.
+                            if let Some((id, _, _)) = view.slider_drag {
+                                match id {
+                                    SliderId::Exposure => s.exposure_ns = view.state.exposure_ns,
+                                    SliderId::Iso => s.iso = view.state.iso,
+                                    SliderId::Focus => s.focus_diopters = view.state.focus_diopters,
+                                    SliderId::Zoom => s.zoom = view.state.zoom,
+                                    SliderId::Frames => s.frames_total = view.state.frames_total,
+                                }
+                            }
                             view.state = s;
                             view.update_image();
                             cx.notify();
@@ -189,7 +320,7 @@ impl Desktop {
             state,
             actions,
             page: Page::Dashboard,
-            focus_drag: None,
+            slider_drag: None,
             image: None,
             image_revision: None,
             preview_cover: true,
@@ -218,6 +349,16 @@ impl Desktop {
     }
 
     fn send(&mut self, action: UiAction, cx: &mut Context<Self>) {
+        // Pending requests render immediately; applied values remain exclusively
+        // authoritative and are only populated by the backend snapshot.
+        match &action {
+            UiAction::SetExposure(v) => self.state.exposure_ns = *v,
+            UiAction::SetIso(v) => self.state.iso = *v,
+            UiAction::SetFocus(v) => self.state.focus_diopters = *v,
+            UiAction::SetZoom(v) => self.state.zoom = *v,
+            UiAction::SetFrameCount(v) => self.state.frames_total = *v,
+            _ => {}
+        }
         if action == UiAction::ChooseDestination {
             let picker = cx.prompt_for_paths(PathPromptOptions {
                 files: false,
@@ -1024,51 +1165,6 @@ impl Desktop {
     fn acquisition_panel(&self, cx: &mut Context<Self>) -> Div {
         let s = &self.state;
         let active = matches!(s.sequence, SequenceStatus::Running | SequenceStatus::Paused);
-        let stepper_row = div()
-            .flex()
-            .flex_row()
-            .items_center()
-            .gap_2()
-            .child(self.button(
-                "frames-less",
-                "−",
-                UiAction::SetFrameCount(s.frames_total.saturating_sub(10).max(1)),
-                !active,
-                cx,
-            ))
-            .child(
-                div()
-                    .flex_1()
-                    .flex()
-                    .flex_row()
-                    .items_center()
-                    .justify_center()
-                    .text_color(rgb(TEXT))
-                    .child(format!("{}", s.frames_total)),
-            )
-            .child(self.button(
-                "frames-more",
-                "+",
-                UiAction::SetFrameCount(s.frames_total.saturating_add(10)),
-                !active,
-                cx,
-            ));
-        // Exposure presets are requests: the runtime validates each one
-        // against the announced range and reports clamps explicitly.
-        const PRESETS: [u64; 6] = [
-            1_000_000_000,
-            5_000_000_000,
-            10_000_000_000,
-            15_000_000_000,
-            30_000_000_000,
-            60_000_000_000,
-        ];
-        let next_exposure = PRESETS
-            .iter()
-            .find(|&&preset| preset > s.exposure_ns)
-            .or(PRESETS.first())
-            .copied()
-            .unwrap_or(s.exposure_ns);
         let mut panel = panel().p_2().gap_2().child(
             div()
                 .flex()
@@ -1107,9 +1203,19 @@ impl Desktop {
                         div()
                             .flex_1()
                             .text_color(rgb(MUTED))
-                            .child("Frames"),
-                    )
-                    .child(stepper_row),
+                            .child(format!("Frames ({})", s.frames_total)),
+                    ),
+            )
+            .child(
+                slider(
+                    "frames-slider",
+                    SliderId::Frames,
+                    Some((1.0, 1000.0)),
+                    f64::from(s.frames_total),
+                    false,
+                    !active,
+                    cx,
+                ),
             )
             .child(
                 div()
@@ -1122,15 +1228,19 @@ impl Desktop {
                         div()
                             .flex_1()
                             .text_color(rgb(MUTED))
-                            .child("Exposure per frame"),
-                    )
-                    .child(self.button(
-                        "exposure-preset",
-                        format!("{} ∨", fmt_exposure(s.exposure_ns)),
-                        UiAction::SetExposure(next_exposure),
-                        !active && s.exposure_range_ns.is_some(),
-                        cx,
-                    )),
+                            .child(format!("Exposure ({})", fmt_exposure(s.exposure_ns))),
+                    ),
+            )
+            .child(
+                slider(
+                    "acq-exposure-slider",
+                    SliderId::Exposure,
+                    s.exposure_range_ns.map(|(lo, hi)| (lo as f64, hi as f64)),
+                    s.exposure_ns as f64,
+                    true,
+                    !active,
+                    cx,
+                ),
             )
             .child(
                 div()
@@ -1385,6 +1495,7 @@ impl Desktop {
             )
     }
 
+
     /// Every camera control as elements, shared by the Camera page and the
     /// right side panel. Button ids match in both trees on purpose: only one
     /// tree renders at a time, so ids never collide.
@@ -1426,188 +1537,75 @@ impl Desktop {
         items.push(Self::row("Hardware", s.hardware_level.clone()).into_any_element());
         items.push(Self::row("Exposure", fmt_exposure(s.exposure_ns)).into_any_element());
         items.push(
-            div()
-                .flex()
-                .flex_row()
-                .gap_2()
-                .child(self.button(
-                    "exp-down",
-                    "− 1 s",
-                    UiAction::SetExposure(s.exposure_range_ns.map_or(s.exposure_ns, |(lo, hi)| {
-                        s.exposure_ns.saturating_sub(1_000_000_000).clamp(lo, hi.max(lo))
-                    })),
-                    edit && s.exposure_range_ns.is_some(),
-                    cx,
-                ))
-                .child(self.button(
-                    "exp-up",
-                    "+ 1 s",
-                    UiAction::SetExposure(s.exposure_range_ns.map_or(s.exposure_ns, |(lo, hi)| {
-                        s.exposure_ns.saturating_add(1_000_000_000).clamp(lo, hi.max(lo))
-                    })),
-                    edit && s.exposure_range_ns.is_some(),
-                    cx,
-                ))
-                .into_any_element(),
+            slider(
+                "exp-slider",
+                SliderId::Exposure,
+                s.exposure_range_ns.map(|(lo, hi)| (lo as f64, hi as f64)),
+                s.exposure_ns as f64,
+                true,
+                edit,
+                cx,
+            )
+            .into_any_element(),
         );
         items.push(Self::row("Sensitivity", format!("ISO {}", s.iso)).into_any_element());
         items.push(
-            div()
-                .flex()
-                .flex_row()
-                .gap_2()
-                .child(self.button(
-                    "iso-down",
-                    "− 100",
-                    UiAction::SetIso(s.iso_range.map_or(s.iso, |(lo, hi)| {
-                        s.iso.saturating_sub(100).clamp(lo, hi.max(lo))
-                    })),
-                    edit && s.iso_range.is_some(),
-                    cx,
-                ))
-                .child(self.button(
-                    "iso-up",
-                    "+ 100",
-                    UiAction::SetIso(s.iso_range.map_or(s.iso, |(lo, hi)| {
-                        s.iso.saturating_add(100).clamp(lo, hi.max(lo))
-                    })),
-                    edit && s.iso_range.is_some(),
-                    cx,
-                ))
-                .into_any_element(),
+            slider(
+                "iso-slider",
+                SliderId::Iso,
+                s.iso_range.map(|(lo, hi)| (lo as f64, hi as f64)),
+                f64::from(s.iso),
+                true,
+                edit,
+                cx,
+            )
+            .into_any_element(),
         );
         items.push(Self::row("Focus", format!("{:.2} D", s.focus_diopters)).into_any_element());
         items.push(
-            div()
-                .flex()
-                .flex_row()
-                .gap_2()
-                .child(self.button(
-                    "focus-down",
-                    "− 0.1 D",
-                    UiAction::SetFocus(s.focus_range.map_or(s.focus_diopters, |(lo, hi)| {
-                        (s.focus_diopters - 0.1).clamp(lo, hi.max(lo))
-                    })),
-                    edit && s.focus_range.is_some(),
-                    cx,
-                ))
-                .child(self.button(
-                    "focus-up",
-                    "+ 0.1 D",
-                    UiAction::SetFocus(s.focus_range.map_or(s.focus_diopters, |(lo, hi)| {
-                        (s.focus_diopters + 0.1).clamp(lo, hi.max(lo))
-                    })),
-                    edit && s.focus_range.is_some(),
-                    cx,
-                ))
-                .into_any_element(),
+            slider(
+                "focus-slider",
+                SliderId::Focus,
+                s.focus_range.map(|(lo, hi)| (f64::from(lo), f64::from(hi))),
+                f64::from(s.focus_diopters),
+                false,
+                edit,
+                cx,
+            )
+            .into_any_element(),
         );
-        // Focus slider: relative drag over ~200 px maps the full announced
-        // range (no layout measurement needed). Emits only on real change.
-        if let Some((lo, hi)) = s.focus_range {
-            let span = (hi - lo).max(f32::EPSILON);
-            let frac = ((s.focus_diopters - lo) / span).clamp(0.0, 1.0);
-            let can_edit = edit;
-            let current = s.focus_diopters;
-            items.push(
-                div()
-                    .id("focus-slider")
-                    .flex()
-                    .flex_row()
-                    .items_center()
-                    .h(px(22.))
-                    .cursor_pointer()
-                    .child(
-                        div()
-                            .flex_1()
-                            .h(px(6.))
-                            .rounded(px(999.))
-                            .bg(rgb(PANEL_ACTIVE))
-                            .child(
-                                div()
-                                    .h(px(6.))
-                                    .rounded(px(999.))
-                                    .bg(rgb(BLUE))
-                                    .w(relative(frac)),
-                            ),
-                    )
-                    .on_mouse_down(
-                        MouseButton::Left,
-                        cx.listener(move |view, event: &MouseDownEvent, _, _| {
-                            if can_edit {
-                                view.focus_drag =
-                                    Some((f32::from(event.position.x), current));
-                            }
-                        }),
-                    )
-                    .on_mouse_move(cx.listener(move |view, event: &MouseMoveEvent, _, cx| {
-                        match event.pressed_button {
-                            Some(MouseButton::Left) => {
-                                if !can_edit {
-                                    return;
-                                }
-                                if let Some((start_x, start_v)) = view.focus_drag {
-                                    let next = (start_v
-                                        + (f32::from(event.position.x) - start_x) / 200.0 * span)
-                                        .clamp(lo, hi);
-                                    if (next - current).abs() > span / 1000.0 {
-                                        view.send(UiAction::SetFocus(next), cx);
-                                    }
-                                }
-                            }
-                            _ => view.focus_drag = None,
-                        }
-                    }))
-                    .into_any_element(),
-            );
-        }
-        items.push(Self::row("White balance", format!("{} K", s.white_balance_kelvin)).into_any_element());
         items.push(
-            div()
-                .flex()
-                .flex_row()
-                .gap_2()
-                .child(self.button(
-                    "wb-down",
-                    "− 250 K",
-                    UiAction::SetWhiteBalance(s.white_balance_kelvin.saturating_sub(250).max(1000)),
-                    edit && s.manual_white_balance,
-                    cx,
-                ))
-                .child(self.button(
-                    "wb-up",
-                    "+ 250 K",
-                    UiAction::SetWhiteBalance(s.white_balance_kelvin.saturating_add(250).min(15000)),
-                    edit && s.manual_white_balance,
-                    cx,
-                ))
-                .into_any_element(),
+            Self::row(
+                "White balance",
+                if s.wb_preset.is_empty() { "auto".into() } else { s.wb_preset.clone() },
+            )
+            .into_any_element(),
+        );
+        items.push(
+            self.button(
+                "wb-cycle",
+                format!(
+                    "{} ∨",
+                    if s.wb_preset.is_empty() { "auto" } else { s.wb_preset.as_str() }
+                ),
+                UiAction::SetWbPreset(next_wb_preset(&s.wb_presets, &s.wb_preset)),
+                edit && !s.wb_presets.is_empty(),
+                cx,
+            )
+            .into_any_element(),
         );
         items.push(Self::row("Zoom", format!("{:.1}×", s.zoom)).into_any_element());
         items.push(
-            div()
-                .flex()
-                .flex_row()
-                .gap_2()
-                .child(self.button(
-                    "zoom-down",
-                    "− 0.5×",
-                    UiAction::SetZoom(s.zoom_range.map_or(s.zoom, |(lo, hi)| {
-                        (s.zoom - 0.5).clamp(lo, hi.max(lo))
-                    })),
-                    edit && s.zoom_range.is_some(),
-                    cx,
-                ))
-                .child(self.button(
-                    "zoom-up",
-                    "+ 0.5×",
-                    UiAction::SetZoom(s.zoom_range.map_or(s.zoom, |(lo, hi)| {
-                        (s.zoom + 0.5).clamp(lo, hi.max(lo))
-                    })),
-                    edit && s.zoom_range.is_some(),
-                    cx,
-                ))
-                .into_any_element(),
+            slider(
+                "zoom-slider",
+                SliderId::Zoom,
+                s.zoom_range.map(|(lo, hi)| (f64::from(lo), f64::from(hi))),
+                f64::from(s.zoom),
+                true,
+                edit,
+                cx,
+            )
+            .into_any_element(),
         );
         items.push(
             self.button(
@@ -1664,24 +1662,15 @@ impl Desktop {
                             .child(Self::row("Integration", fmt_integration(s.frames_total, s.exposure_ns)))
                             .child(Self::row("State", format!("{:?}", s.sequence)))
                             .child(
-                                div()
-                                    .flex()
-                                    .flex_row()
-                                    .gap_2()
-                                    .child(self.button(
-                                        "frames-less",
-                                        "− 10",
-                                        UiAction::SetFrameCount(s.frames_total.saturating_sub(10).max(1)),
-                                        !active,
-                                        cx,
-                                    ))
-                                    .child(self.button(
-                                        "frames-more",
-                                        "+ 10",
-                                        UiAction::SetFrameCount(s.frames_total.saturating_add(10)),
-                                        !active,
-                                        cx,
-                                    )),
+                                slider(
+                                    "seq-frames-slider",
+                                    SliderId::Frames,
+                                    Some((1.0, 1000.0)),
+                                    f64::from(s.frames_total),
+                                    false,
+                                    !active,
+                                    cx,
+                                ),
                             )
                             .child(if active {
                                 div()

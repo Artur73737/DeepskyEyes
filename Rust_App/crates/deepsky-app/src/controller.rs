@@ -113,7 +113,19 @@ fn focus_request(caps: &CameraCapabilities, millidiopters: u64, locked: bool) ->
     Ok(FocusRequest::Manual { millidiopters, locked })
 }
 
-fn white_balance_request(caps: &CameraCapabilities, kelvin: u64) -> Result<WhiteBalanceRequest, ControllerError> {
+fn white_balance_request(caps: &CameraCapabilities, kelvin: u64, preset: Option<&str>) -> Result<WhiteBalanceRequest, ControllerError> {
+    // An explicitly chosen preset wins, but only when announced. Parameterized
+    // modes ("temperature", "manual") are never valid here: they need set-point
+    // requests, handled below.
+    if let Some(name) = preset {
+        if ["temperature", "manual"].contains(&name) {
+            return Err(ControllerError::Camera(CameraError::new(ErrorCode::InvalidRequest, "preset needs its parameterized request")));
+        }
+        if caps.wb_modes.iter().any(|m| m == name) {
+            return Ok(WhiteBalanceRequest::Mode(name.into()));
+        }
+        return Err(ControllerError::Camera(CameraError::new(ErrorCode::Unsupported, "white-balance preset not announced")));
+    }
     if caps.wb_modes.iter().any(|m| m == "temperature") && caps.wb_kelvin.is_some() {
         return Ok(WhiteBalanceRequest::Temperature { kelvin, tint: None });
     }
@@ -146,6 +158,8 @@ pub struct CaptureSpec {
     pub focus_millidiopters: u64,
     pub focus_locked: bool,
     pub wb_kelvin: u64,
+    /// Explicit announced preset (e.g. "daylight"); validated, never assumed.
+    pub wb_preset: Option<String>,
     pub zoom_x1000: Option<u64>,
     pub stream_override: Option<deepsky_camera::model::StreamConfiguration>,
     /// true = first announced RAW stream; false = first announced non-RAW stream.
@@ -177,7 +191,7 @@ pub fn build_request(caps: &CameraCapabilities, spec: &CaptureSpec) -> Result<Ca
             zoom_x1000: spec.zoom_x1000,
             crop: None,
             stream: Some(stream),
-            white_balance: Some(white_balance_request(caps, spec.wb_kelvin)?),
+            white_balance: Some(white_balance_request(caps, spec.wb_kelvin, spec.wb_preset.as_deref())?),
             processing: processing_minimal(caps),
             ois: caps.ois_modes.iter().find(|m| *m == "off").cloned(),
             eis: caps.eis_modes.iter().find(|m| *m == "off").cloned(),
@@ -246,6 +260,8 @@ pub struct AcquisitionOptions {
     pub sensitivity: u32,
     pub focus_millidiopters: u64,
     pub wb_kelvin: u64,
+    /// Explicit announced preset (e.g. "daylight"); validated, never assumed.
+    pub wb_preset: Option<String>,
     pub delay_ns: u64,
     pub focus_locked: bool,
     pub zoom_x1000: Option<u64>,
@@ -261,6 +277,7 @@ impl AcquisitionOptions {
             focus_millidiopters: self.focus_millidiopters,
             focus_locked: self.focus_locked,
             wb_kelvin: self.wb_kelvin,
+            wb_preset: self.wb_preset.clone(),
             zoom_x1000: self.zoom_x1000,
             stream_override: self.stream_override.clone(),
             raw: self.raw,
@@ -278,6 +295,7 @@ impl Default for AcquisitionOptions {
             sensitivity: 100,
             focus_millidiopters: 0,
             wb_kelvin: 5_000,
+            wb_preset: None,
             delay_ns: 0,
             focus_locked: true,
             zoom_x1000: None,
@@ -751,6 +769,8 @@ pub fn encode_png_rgb8(rgb: &[u8], width: u32, height: u32) -> io::Result<Vec<u8
         let mut encoder = png::Encoder::new(&mut out, width, height);
         encoder.set_color(png::ColorType::Rgb);
         encoder.set_depth(png::BitDepth::Eight);
+        // Preview is transient: prioritize latency over archival compression.
+        encoder.set_compression(png::Compression::Fastest);
         encoder.write_header()?.write_image_data(rgb)?;
     }
     Ok(out)

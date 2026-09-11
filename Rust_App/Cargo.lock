@@ -1306,6 +1306,7 @@ dependencies = [
  "deepsky-app",
  "deepsky-camera",
  "deepsky-diagnostics",
+ "deepsky-preview",
  "deepsky-protocol",
  "deepsky-sequencer",
  "deepsky-session",

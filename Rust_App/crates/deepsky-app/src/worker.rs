@@ -84,8 +84,15 @@ type CaptureThreadOut = (
     Result<CapturedFrame, deepsky_camera::model::CameraError>,
 );
 
+type PreviewThreadOut = (
+    Box<dyn CameraBackend + Send>,
+    Result<deepsky_camera::model::PreviewFrame, deepsky_camera::model::CameraError>,
+);
+
 struct Worker {
     backend: Option<Box<dyn CameraBackend + Send>>,
+    preview_in_flight: Option<Receiver<PreviewThreadOut>>,
+    controls_changed: Option<Instant>,
     source: SourceKind,
     /// Camera id currently open on the backend, if any. Single source of
     /// truth for open-state: prevents double-open across select/run paths.
@@ -99,6 +106,8 @@ struct Worker {
     focus_mdiopt: u64,
     focus_locked: bool,
     wb_kelvin: u32,
+    /// Pending announced WB preset; empty means "device default chain".
+    wb_preset: String,
     zoom_x1000: Option<u64>,
     stream_override: Option<deepsky_camera::model::StreamConfiguration>,
     raw: bool,
@@ -116,17 +125,23 @@ struct Worker {
     preview_mean: Option<f64>,
     preview_failures: u64,
     preview_revision: u64,
+    /// Consecutive live-preview failures, used for bounded retry backoff.
+    live_backoff: u32,
     last_sha: Option<String>,
     thermal: Option<ThermalStatus>,
     last_bytes: Option<(u64, u64, Instant)>,
     rx_mbps: f64,
     tx_mbps: f64,
+    sessions_cache: Vec<SessionSummary>,
+    sessions_checked: Option<Instant>,
 }
 
 impl Worker {
     fn new() -> Self {
         Self {
             backend: None,
+            preview_in_flight: None,
+            controls_changed: None,
             source: SourceKind::Phone,
             open_camera_id: None,
             caps: vec![],
@@ -137,6 +152,7 @@ impl Worker {
             focus_mdiopt: 0,
             focus_locked: true,
             wb_kelvin: 5_000,
+            wb_preset: String::new(),
             zoom_x1000: None,
             stream_override: None,
             raw: true,
@@ -154,11 +170,14 @@ impl Worker {
             preview_mean: None,
             preview_failures: 0,
             preview_revision: 0,
+            live_backoff: 0,
             last_sha: None,
             thermal: None,
             last_bytes: None,
             rx_mbps: 0.0,
             tx_mbps: 0.0,
+            sessions_cache: Vec::new(),
+            sessions_checked: None,
         }
     }
 
@@ -171,6 +190,10 @@ impl Worker {
     }
 
     fn handle(&mut self, action: UiAction) {
+        if local_control(&action) && !matches!(action,
+            UiAction::SetFrameCount(_) | UiAction::SetFrameType(_) | UiAction::SetAutoSave(_)) {
+            self.controls_changed = Some(Instant::now());
+        }
         match action {
             UiAction::Connect => self.connect(),
             UiAction::Disconnect => self.disconnect(),
@@ -180,6 +203,7 @@ impl Worker {
             UiAction::SetIso(iso) => self.set_iso(iso),
             UiAction::SetFocus(diopters) => self.set_focus(diopters),
             UiAction::SetWhiteBalance(kelvin) => self.set_white_balance(kelvin),
+            UiAction::SetWbPreset(preset) => self.set_wb_preset(preset),
             UiAction::SetZoom(zoom) => self.set_zoom(zoom),
             UiAction::SetRaw(raw) => {
                 self.raw = raw;
@@ -209,6 +233,7 @@ impl Worker {
                 self.message.clear();
             }
             UiAction::RefreshSessions => {
+                self.sessions_checked = None;
                 let count = self.sessions().len();
                 self.message = format!("{} session(s) in {}", count, self.destination.display());
             }
@@ -221,6 +246,7 @@ impl Worker {
                 let dir = PathBuf::from(&path);
                 if dir.is_dir() {
                     self.destination = dir;
+                    self.sessions_checked = None;
                     self.message.clear();
                 } else {
                     self.fail(format!("destination is not a directory: {path}"));
@@ -287,6 +313,9 @@ impl Worker {
                         .unwrap_or_else(|| "connected".into());
                     self.thermal = self.backend.as_mut().and_then(|b| b.thermal().ok());
                     self.message = format!("connected: {label}");
+                    if !self.camera_id.is_empty() {
+                        self.select_camera(self.camera_id.clone());
+                    }
                 }
                 Err(e) => self.fail(format!("discover: {e}")),
             },
@@ -306,6 +335,9 @@ impl Worker {
         self.open_camera_id = None;
         self.outcome = None;
         self.device_label = "No device connected".into();
+        self.preview = None;
+        self.histogram.clear();
+        self.preview_mean = None;
         self.frame_progress = None;
         self.message = "disconnected".into();
     }
@@ -341,13 +373,11 @@ impl Worker {
             self.fail(e);
             return;
         }
-        let caps = match self.require_open() {
-            Ok(caps) => caps.clone(),
-            Err(e) => {
-                self.fail(e);
-                return;
-            }
-        };
+        let caps = self.caps.iter().find(|c| c.camera_id == id).unwrap().clone();
+        if self.backend.is_none() {
+            self.fail("not connected".into());
+            return;
+        }
         let opts = self.options(1);
         let backend = self.backend.as_mut().expect("connected");
         let selection = deepsky_camera::model::CameraSelection { camera_id: id.clone(), physical_id: None };
@@ -366,6 +396,7 @@ impl Worker {
             Ok(outcome) => {
                 self.camera_id = id.clone();
                 self.outcome = Some(outcome);
+                self.live_backoff = 0;
                 self.message = format!("camera {id} open, live preview on");
                 self.refresh_preview();
             }
@@ -428,6 +459,20 @@ impl Worker {
         }
     }
 
+    fn set_wb_preset(&mut self, preset: String) {
+        let announced = self.open_caps().is_some_and(|c| {
+            preset != "temperature"
+                && preset != "manual"
+                && c.wb_modes.iter().any(|m| m == &preset)
+        });
+        if announced {
+            self.wb_preset = preset;
+            self.message.clear();
+        } else {
+            self.fail(format!("white-balance preset '{preset}' not announced"));
+        }
+    }
+
     fn set_zoom(&mut self, zoom: f32) {
         if zoom < 1.0 {
             self.fail(format!("zoom {zoom}x below 1.0x"));
@@ -478,6 +523,11 @@ impl Worker {
             sensitivity: self.sensitivity,
             focus_millidiopters: self.focus_mdiopt,
             wb_kelvin: u64::from(self.wb_kelvin),
+            wb_preset: if self.wb_preset.is_empty() {
+                None
+            } else {
+                Some(self.wb_preset.clone())
+            },
             delay_ns: SETTLE_DELAY_NS,
             focus_locked: self.focus_locked,
             zoom_x1000: self.zoom_x1000,
@@ -863,7 +913,58 @@ impl Worker {
 
     fn refresh_preview(&mut self) {
         let Some(backend) = self.backend.as_mut() else { return };
-        match backend.preview() {
+        let result = backend.preview();
+        self.accept_preview(result);
+    }
+
+    fn start_preview(&mut self) {
+        let Some(mut backend) = self.backend.take() else { return };
+        let (tx, rx) = std::sync::mpsc::channel();
+        self.preview_in_flight = Some(rx);
+        std::thread::spawn(move || {
+            let result = backend.preview();
+            let _ = tx.send((backend, result));
+        });
+    }
+
+    fn apply_live_controls(&mut self) {
+        if !self.controls_changed.is_some_and(|at| at.elapsed() >= Duration::from_millis(150)) {
+            return;
+        }
+        self.controls_changed = None;
+        let Some(caps) = self.open_caps().cloned() else { return };
+        let request = build_request(&caps, &self.options(1).spec());
+        let Some(backend) = self.backend.as_mut() else { return };
+        match request.map_err(|e| e.to_string()).and_then(|request|
+            backend.configure(&request, ValidationPolicy::Reject).map_err(|e| e.to_string())) {
+            Ok(outcome) => self.outcome = Some(outcome),
+            Err(error) => self.fail(format!("live controls: {error}")),
+        }
+    }
+
+    fn poll_preview(&mut self) -> bool {
+        let Some(rx) = &self.preview_in_flight else { return false };
+        match rx.try_recv() {
+            Ok((backend, result)) => {
+                self.preview_in_flight = None;
+                self.backend = Some(backend);
+                self.live_backoff = if result.is_ok() { 0 } else { self.live_backoff.saturating_add(1) };
+                self.accept_preview(result);
+                true
+            }
+            Err(std::sync::mpsc::TryRecvError::Empty) => false,
+            Err(std::sync::mpsc::TryRecvError::Disconnected) => {
+                self.preview_in_flight = None;
+                self.open_camera_id = None;
+                self.preview = None;
+                self.fail("preview thread terminated; reconnect the camera".into());
+                true
+            }
+        }
+    }
+
+    fn accept_preview(&mut self, result: Result<deepsky_camera::model::PreviewFrame, deepsky_camera::model::CameraError>) {
+        match result {
             Ok(frame) => match preview_to_rgb8(&frame) {
                 Ok(rgb) => match encode_png_rgb8(&rgb.rgb, rgb.width, rgb.height) {
                     Ok(png) => {
@@ -1011,7 +1112,7 @@ impl Worker {
         };
         let mut snap = UiSnapshot::default();
         let capturing = self.run.as_ref().is_some_and(|run| run.capture.is_some());
-        snap.connected = self.backend.is_some() || capturing;
+        snap.connected = self.backend.is_some() || capturing || self.preview_in_flight.is_some();
         snap.device = self
             .backend
             .as_ref()
@@ -1047,6 +1148,17 @@ impl Worker {
         snap.iso = self.sensitivity;
         snap.focus_diopters = self.focus_mdiopt as f32 / 1000.0;
         snap.white_balance_kelvin = self.wb_kelvin;
+        snap.wb_preset = self.wb_preset.clone();
+        snap.wb_presets = self
+            .open_caps()
+            .map(|c| {
+                c.wb_modes
+                    .iter()
+                    .filter(|m| *m != "temperature" && *m != "manual")
+                    .cloned()
+                    .collect()
+            })
+            .unwrap_or_default();
         snap.zoom = self.zoom_x1000.map(|z| z as f32 / 1000.0).unwrap_or(1.0);
         snap.frames_done = done;
         snap.frames_total = total;
@@ -1071,7 +1183,11 @@ impl Worker {
             ("retries used".into(), self.run.as_ref().map(|r| r.runner.retries_used().to_string()).unwrap_or_else(|| "0".into())),
             ("preview failures".into(), self.preview_failures.to_string()),
         ];
-        snap.sessions = self.sessions();
+        if self.sessions_checked.is_none_or(|at| at.elapsed() >= Duration::from_secs(3)) {
+            self.sessions_cache = self.sessions();
+            self.sessions_checked = Some(Instant::now());
+        }
+        snap.sessions = self.sessions_cache.clone();
         snap.rx_mbps = self.rx_mbps;
         snap.tx_mbps = self.tx_mbps;
         snap.dropped_raw = 0; // lossless path: failures are errors, never silent drops
@@ -1101,12 +1217,37 @@ enum StepOutcome {
 /// active sequence between actions, and always pushes a snapshot per event.
 pub fn run_worker(rx: Receiver<UiAction>, tx: Sender<UiSnapshot>) {
     let mut worker = Worker::new();
+    let mut next_preview = Instant::now();
+    let mut deferred = Vec::new();
     let snapshot = worker.snapshot();
     if tx.send(snapshot).is_err() {
         return;
     }
     loop {
-        match rx.recv_timeout(Duration::from_millis(50)) {
+        if worker.poll_preview() {
+            next_preview = Instant::now() + if worker.live_backoff == 0 {
+                Duration::from_millis(33)
+            } else {
+                Duration::from_millis(250 * u64::from(worker.live_backoff.min(20)))
+            };
+            if tx.send(worker.snapshot()).is_err() { break; }
+        }
+        let received = if worker.preview_in_flight.is_none() && !deferred.is_empty() {
+            Ok(deferred.remove(0))
+        } else {
+            rx.recv_timeout(Duration::from_millis(16))
+        };
+        // Operations requiring the single camera link wait for its current RPC.
+        // Pure control edits continue to be validated while preview is in flight.
+        let received = match received {
+            Ok(action) if worker.preview_in_flight.is_some()
+                && (!deferred.is_empty() || !local_control(&action)) => {
+                push_action(&mut deferred, action);
+                continue;
+            }
+            other => other,
+        };
+        match received {
             Ok(UiAction::Shutdown) => {
                 if let Some(run) = worker.run.take() {
                     let _ = worker.abort_run(run, "shutdown by user");
@@ -1118,11 +1259,35 @@ pub fn run_worker(rx: Receiver<UiAction>, tx: Sender<UiSnapshot>) {
                 break;
             }
             Ok(action) => {
-                worker.handle(action);
+                // Drain a bounded batch before camera I/O. A pointer drag must
+                // not enqueue one blocking preview for every intermediate value.
+                let mut pending = Vec::new();
+                push_action(&mut pending, action);
+                for action in deferred.drain(..) {
+                    push_action(&mut pending, action);
+                }
+                for action in rx.try_iter().take(255) {
+                    push_action(&mut pending, action);
+                }
+                let mut shutdown = false;
+                for action in pending {
+                    if worker.preview_in_flight.is_some()
+                        && (!deferred.is_empty() || !local_control(&action)) {
+                        push_action(&mut deferred, action);
+                        continue;
+                    }
+                    if action == UiAction::Shutdown {
+                        worker.disconnect();
+                        shutdown = true;
+                        break;
+                    }
+                    worker.handle(action);
+                }
                 let snapshot = worker.snapshot();
                 if tx.send(snapshot).is_err() {
                     break;
                 }
+                if shutdown { break; }
             }
             Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {}
             Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => break,
@@ -1133,13 +1298,85 @@ pub fn run_worker(rx: Receiver<UiAction>, tx: Sender<UiSnapshot>) {
             if tx.send(snapshot).is_err() {
                 break;
             }
+        } else if worker.backend.is_some()
+            && worker.open_camera_id.is_some()
+            && Instant::now() >= next_preview
+        {
+            // Continuous live view: grab the next preview as soon as the
+            // previous one lands. Nothing is ever written to disk here;
+            // files are produced only by capture/sequence paths.
+            worker.apply_live_controls();
+            worker.start_preview();
         }
+    }
+}
+
+fn local_control(action: &UiAction) -> bool {
+    matches!(action, UiAction::SetExposure(_) | UiAction::SetIso(_)
+        | UiAction::SetFocus(_) | UiAction::SetZoom(_) | UiAction::SetWhiteBalance(_)
+        | UiAction::SetWbPreset(_) | UiAction::SetRaw(_) | UiAction::SetResolution(_, _)
+        | UiAction::SetLocked(_) | UiAction::SetFrameCount(_) | UiAction::SetFrameType(_)
+        | UiAction::SetAutoSave(_))
+}
+
+/// Replace only adjacent updates to the same control. Never move a setting
+/// across capture, disconnect, source selection or another ordered operation.
+fn push_action(pending: &mut Vec<UiAction>, action: UiAction) {
+    let continuous = matches!(action, UiAction::SetExposure(_) | UiAction::SetIso(_)
+        | UiAction::SetFocus(_) | UiAction::SetZoom(_) | UiAction::SetWhiteBalance(_)
+        | UiAction::SetFrameCount(_));
+    if continuous && pending.last().is_some_and(|previous|
+        std::mem::discriminant(previous) == std::mem::discriminant(&action)) {
+        *pending.last_mut().unwrap() = action;
+    } else {
+        pending.push(action);
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn coalesces_drag_without_crossing_capture_barrier() {
+        let mut pending = Vec::new();
+        for action in [UiAction::SetIso(100), UiAction::SetIso(200),
+            UiAction::CaptureOne, UiAction::SetIso(400), UiAction::SetIso(800)] {
+            push_action(&mut pending, action);
+        }
+        assert_eq!(pending, vec![UiAction::SetIso(200), UiAction::CaptureOne, UiAction::SetIso(800)]);
+    }
+
+    #[test]
+    fn connect_starts_preview_and_disconnect_clears_it() {
+        let mut worker = Worker::new();
+        worker.connect_with(Source::Simulator { realtime: false });
+        assert!(worker.open_camera_id.is_some(), "{}", worker.message);
+        assert!(worker.preview.is_some(), "{}", worker.message);
+        worker.disconnect();
+        assert!(worker.preview.is_none());
+        assert!(worker.histogram.is_empty());
+    }
+
+    #[test]
+    fn preview_in_flight_keeps_connection_and_accepts_controls() {
+        let mut worker = Worker::new();
+        worker.connect_with(Source::Simulator { realtime: false });
+        let revision = worker.preview_revision;
+        worker.start_preview();
+        assert!(worker.backend.is_none());
+        assert!(worker.snapshot().connected);
+        worker.handle(UiAction::SetIso(400));
+        assert_eq!(worker.snapshot().iso, 400);
+        let deadline = Instant::now() + Duration::from_secs(5);
+        while !worker.poll_preview() {
+            assert!(Instant::now() < deadline, "preview stalled");
+            std::thread::yield_now();
+        }
+        assert!(worker.backend.is_some());
+        assert!(worker.preview_revision > revision);
+        worker.disconnect();
+    }
 
     #[test]
     fn source_env_parsing() {
