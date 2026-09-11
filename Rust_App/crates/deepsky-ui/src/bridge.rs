@@ -15,6 +15,7 @@ use std::sync::Arc;
 pub enum UiAction {
     Connect,
     Disconnect,
+    SetSource(SourceKind),
     SelectCamera(String),
     SetExposure(u64),
     SetIso(u32),
@@ -64,6 +65,15 @@ pub struct CameraChoice {
     pub id: String,
     pub label: String,
 }
+
+/// Which camera provides frames. Phone = the Pixel over ADB/USB transport.
+/// Simulator = the explicit synthetic generator, never hardware data.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum SourceKind {
+    #[default]
+    Phone,
+    Simulator,
+}
 #[derive(Clone, Debug)]
 pub struct SessionSummary {
     pub id: String,
@@ -81,6 +91,7 @@ pub struct PreviewImage {
 #[derive(Clone, Debug)]
 pub struct UiSnapshot {
     pub connected: bool,
+    pub source: SourceKind,
     pub device: String,
     pub camera_id: String,
     pub cameras: Vec<CameraChoice>,
@@ -106,6 +117,9 @@ pub struct UiSnapshot {
     pub frames_done: u32,
     pub frames_total: u32,
     pub sequence: SequenceStatus,
+    /// Live exposure progress of the frame currently exposing, 0.0..=1.0.
+    /// None when no frame is exposing. The UI derives seconds from this.
+    pub frame_progress: Option<f32>,
     pub frame_type: FrameType,
     pub preview: Option<PreviewImage>,
     pub histogram: Vec<u32>,
@@ -126,6 +140,7 @@ impl Default for UiSnapshot {
     fn default() -> Self {
         Self {
             connected: false,
+            source: SourceKind::Phone,
             device: "No device connected".into(),
             camera_id: String::new(),
             cameras: vec![],
@@ -151,6 +166,7 @@ impl Default for UiSnapshot {
             frames_done: 0,
             frames_total: 300,
             sequence: SequenceStatus::Idle,
+            frame_progress: None,
             frame_type: FrameType::Light,
             preview: None,
             histogram: vec![],

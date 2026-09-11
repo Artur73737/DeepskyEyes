@@ -9,6 +9,7 @@ use deepsky_app::{controller, source::Source};
 use deepsky_app::worker;
 
 fn main() {
+    install_crash_log();
     let args: Vec<String> = std::env::args().skip(1).collect();
     if args.iter().any(|a| a == "--headless") {
         std::process::exit(match headless(&args) {
@@ -52,8 +53,23 @@ fn pause_if_terminal() {
     }
 }
 
-fn flag(args: &[String], name: &str) -> Option<String> {
-    let mut i = 0;
+/// Panics are invisible without a console: append them to %TEMP% so a crash
+/// always leaves evidence (send deepsky-crash.log with bug reports).
+fn install_crash_log() {
+    std::panic::set_hook(Box::new(|info| {
+        let line = format!("{:?} panic: {info}\n", std::time::SystemTime::now());
+        if let Ok(mut file) = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(std::env::temp_dir().join("deepsky-crash.log"))
+        {
+            use std::io::Write;
+            let _ = file.write_all(line.as_bytes());
+        }
+    }));
+}
+
+fn flag(args: &[String], name: &str) -> Option<String> {    let mut i = 0;
     while i < args.len() {
         if args[i] == format!("--{name}") {
             return args.get(i + 1).cloned();

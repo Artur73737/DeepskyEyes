@@ -19,10 +19,11 @@ use deepsky_camera::{
 use deepsky_metadata::{
     config_version::CONFIG_VERSION,
     frame::FrameMetadata,
-    session_manifest::{FrameRecord, SessionManifest, MANIFEST_VERSION},
+    session_manifest::{FrameRecord, PreviewFile, SessionManifest, MANIFEST_VERSION},
 };
 use deepsky_preview::decoder::preview_to_rgb8;
 use deepsky_protocol::version::PROTOCOL_VERSION;
+use deepsky_raw::checksum::sha256_hex;
 use deepsky_sequencer::{
     errors::SequencerError,
     plan::SequencePlan,
@@ -293,6 +294,7 @@ pub struct AcquisitionReport {
     pub frames_committed: u32,
     pub frame_sha256: Vec<String>,
     pub preview_mean_luma: Option<f64>,
+    pub preview_png: Option<PathBuf>,
     pub warnings: Vec<String>,
     pub origin: Origin,
     pub identity: String,
@@ -398,6 +400,7 @@ pub fn prepare_run(
             "severity": thermal.severity,
             "temperature_c": thermal.temperature_c,
         })],
+        preview_png: None,
     };
     let store = SessionStore::create(&session_dir, manifest)?;
     let disk = DiskWriter::new(session_dir.to_string_lossy().as_ref()).start(8, payload_bytes as usize)?;
@@ -466,11 +469,47 @@ pub fn run_acquisition(
         }
     };
 
-    let preview_mean_luma = match backend.preview() {
-        Ok(preview) => preview_to_rgb8(&preview).map(|rgb| rgb.mean_luma()).ok(),
+    let (preview_mean_luma, preview_png) = match backend.preview() {
+        Ok(preview) => match preview_to_rgb8(&preview) {
+            Ok(rgb) => {
+                let mean = rgb.mean_luma();
+                let path = session_dir.join("preview.png");
+                match encode_png_rgb8(&rgb.rgb, rgb.width, rgb.height)
+                    .map_err(|e| e.to_string())
+                    .and_then(|png| {
+                        std::fs::write(&path, &png).map_err(|e| e.to_string())?;
+                        Ok(png)
+                    })
+                {
+                    Ok(png) => {
+                        let mut manifest = store.manifest().clone();
+                        manifest.preview_png = Some(PreviewFile {
+                            filename: "preview.png".to_string(),
+                            size_bytes: png.len() as u64,
+                            sha256: sha256_hex(&png),
+                        });
+                        match store.save(manifest) {
+                            Ok(()) => (Some(mean), Some(path)),
+                            Err(e) => {
+                                warnings.push(format!("preview manifest not saved: {e}"));
+                                (Some(mean), None)
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        warnings.push(format!("preview PNG not saved: {e}"));
+                        (Some(mean), None)
+                    }
+                }
+            }
+            Err(e) => {
+                warnings.push(format!("closing preview unavailable: {e}"));
+                (None, None)
+            }
+        },
         Err(e) => {
             warnings.push(format!("closing preview unavailable: {e}"));
-            None
+            (None, None)
         }
     };
     let _ = backend.close();
@@ -481,6 +520,7 @@ pub fn run_acquisition(
         frames_committed: runner.progress().done,
         frame_sha256,
         preview_mean_luma,
+        preview_png,
         warnings,
         origin: caps.origin.unwrap_or(Origin::Synthetic),
         identity: caps.identity.clone(),
@@ -590,7 +630,7 @@ pub struct FrameCtx {
 }
 
 #[allow(clippy::too_many_arguments)]
-fn submit_frame(
+pub(crate) fn submit_frame(
     worker: &DiskWorker,
     outcome: &deepsky_camera::model::ConfigurationOutcome,
     stream: &deepsky_camera::model::StreamConfiguration,

@@ -48,6 +48,10 @@ fn print_report(report: &AcquisitionReport) {
         Some(mean) => println!("preview_mean_luma: {mean:.2}"),
         None => println!("preview_mean_luma: unavailable"),
     }
+    match &report.preview_png {
+        Some(path) => println!("preview_png: {}", path.display()),
+        None => println!("preview_png: unavailable"),
+    }
     for warning in &report.warnings {
         println!("warning: {warning}");
     }

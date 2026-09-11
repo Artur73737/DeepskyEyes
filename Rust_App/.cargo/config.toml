@@ -1,0 +1,6 @@
+# Incremental cache under target/debug/incremental is unmanageable on this
+# machine (stale session dirs locked by foreign processes cause endless
+# "Access is denied" garbage-collect warnings). Disable it: builds do
+# full-crate codegen instead, dependency rlibs stay cached as usual.
+[build]
+incremental = false

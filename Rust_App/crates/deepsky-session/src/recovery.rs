@@ -53,6 +53,9 @@ pub fn scan(root: impl AsRef<Path>, manifest: &SessionManifest) -> io::Result<Re
             if !valid { report.corrupt.push(sidecar); }
         }
     }
+    if let Some(preview) = &manifest.preview_png {
+        verify_artifact(&root, &mut report, &mut known, &preview.filename, preview.size_bytes, &preview.sha256)?;
+    }
     fn walk(root: &Path, dir: &Path, files: &mut Vec<String>) -> io::Result<()> {
         for entry in fs::read_dir(dir)? {
             let entry = entry?;
@@ -74,6 +77,24 @@ pub fn scan(root: impl AsRef<Path>, manifest: &SessionManifest) -> io::Result<Re
         }
     }
     report.verified.sort(); report.missing.sort(); report.corrupt.sort(); report.untracked.sort();
-    report.frames_remaining = manifest.frames_requested.saturating_sub(report.verified.len() as u32);
+    let preview_name = manifest.preview_png.as_ref().map(|p| p.filename.as_str());
+    let verified_frames = report.verified.iter().filter(|f| Some(f.as_str()) != preview_name).count() as u32;
+    report.frames_remaining = manifest.frames_requested.saturating_sub(verified_frames);
     Ok(report)
+}
+
+/// Verify a tracked non-frame artifact (e.g. the closing preview image).
+fn verify_artifact(root: &Path, report: &mut RecoveryReport, known: &mut HashSet<String>, filename: &str, size_bytes: u64, sha256: &str) -> io::Result<()> {
+    known.insert(filename.to_string());
+    let path = safe_path(root, Path::new(filename))?;
+    match fs::File::open(&path) {
+        Err(e) if e.kind() == io::ErrorKind::NotFound => report.missing.push(filename.to_string()),
+        Err(e) => return Err(e),
+        Ok(file) => {
+            if file.metadata()?.len() != size_bytes || sha256_reader(file)? != sha256 {
+                report.corrupt.push(filename.to_string());
+            } else { report.verified.push(filename.to_string()); }
+        }
+    }
+    Ok(())
 }

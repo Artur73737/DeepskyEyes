@@ -21,6 +21,20 @@ pub struct SessionManifest {
     pub warnings: Vec<String>,
     pub errors: Vec<String>,
     pub thermal_events: Vec<serde_json::Value>,
+    /// Optional closing preview image (e.g. `preview.png`). Tracked so the
+    /// recovery scan verifies it instead of flagging it as untracked.
+    /// Absent in older manifests, which still validate.
+    #[serde(default)]
+    pub preview_png: Option<PreviewFile>,
+}
+
+/// Integrity record for a non-frame session artifact.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct PreviewFile {
+    /// Portable path relative to the session directory.
+    pub filename: String,
+    pub size_bytes: u64,
+    pub sha256: String,
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -43,6 +57,7 @@ impl Default for SessionManifest {
             config_version: super::config_version::CONFIG_VERSION,
             configuration: serde_json::Value::Null, capability_snapshot: serde_json::Value::Null,
             frames: vec![], warnings: vec![], errors: vec![], thermal_events: vec![],
+            preview_png: None,
         }
     }
 }
@@ -63,6 +78,11 @@ impl SessionManifest {
             }
             if frame.sha256.len() != 64 || !frame.sha256.bytes().all(|b| b.is_ascii_hexdigit()) {
                 return Err("invalid SHA-256 digest".into());
+            }
+        }
+        if let Some(preview) = &self.preview_png {
+            if preview.filename.is_empty() || preview.sha256.len() != 64 || !preview.sha256.bytes().all(|b| b.is_ascii_hexdigit()) {
+                return Err("invalid preview integrity record".into());
             }
         }
         Ok(())

@@ -2,8 +2,8 @@
 //! operations and pushes authoritative `UiSnapshot`s. The UI owns
 //! presentation only; this worker owns the camera, the run and the files.
 //!
-//! The worker is single-threaded: actions are handled between sequence steps,
-//! so pause/stop always land between frames, never mid-frame.
+//! Captures expose on a dedicated thread so progress snapshots keep flowing;
+//! the worker polls, commits and reports. No mock data anywhere here.
 use std::{
     path::PathBuf,
     sync::{
@@ -15,17 +15,18 @@ use std::{
 
 use deepsky_camera::{
     backend::CameraBackend,
-    model::{CameraCapabilities, ErrorCode, ThermalStatus},
+    model::{CameraCapabilities, CapturedFrame, ErrorCode, ThermalStatus},
 };
 use deepsky_preview::{decoder::preview_to_rgb8, histogram::Histogram};
 use deepsky_sequencer::{recovery::RetryPolicy, runner::SequenceRunner, state_machine::SequenceState};
 use deepsky_session::{calibration::SessionKind, store::SessionStore};
-use deepsky_ui::{CameraChoice, FrameType, PreviewImage, SequenceStatus, SessionSummary, UiAction, UiSnapshot};
+use deepsky_ui::{CameraChoice, FrameType, PreviewImage, SequenceStatus, SessionSummary, SourceKind, UiAction, UiSnapshot};
 
 use crate::{
     controller::{
         capture_and_commit, check_thermal, connect_source, encode_png_rgb8, now_unix_ns,
-        pick_camera, prepare_run, AcquisitionOptions, ControllerError, PreparedRun, APP_VERSION,
+        pick_camera, prepare_run, submit_frame, AcquisitionOptions, ControllerError, PreparedRun,
+        APP_VERSION,
     },
     source::Source,
 };
@@ -63,10 +64,29 @@ struct ActiveRun {
     prepared: PreparedRun,
     last_step: Instant,
     since_thermal: u32,
+    /// Frame currently exposing on the capture thread, if any.
+    capture: Option<CaptureInFlight>,
+    /// Stop requested mid-exposure: honored as soon as the frame lands.
+    pending_stop: bool,
 }
+
+/// A frame exposing off the worker thread. The thread owns the backend link;
+/// the worker keeps stepping, polling and reporting live progress meanwhile.
+struct CaptureInFlight {
+    rx: Receiver<CaptureThreadOut>,
+    started: Instant,
+    exposure_s: f32,
+    index: u32,
+}
+
+type CaptureThreadOut = (
+    Box<dyn CameraBackend + Send>,
+    Result<CapturedFrame, deepsky_camera::model::CameraError>,
+);
 
 struct Worker {
     backend: Option<Box<dyn CameraBackend + Send>>,
+    source: SourceKind,
     caps: Vec<CameraCapabilities>,
     camera_id: String,
     outcome: Option<deepsky_camera::model::ConfigurationOutcome>,
@@ -86,6 +106,8 @@ struct Worker {
     auto_save: bool,
     run: Option<ActiveRun>,
     message: String,
+    device_label: String,
+    frame_progress: Option<f32>,
     preview: Option<PreviewImage>,
     histogram: Vec<u32>,
     preview_mean: Option<f64>,
@@ -102,6 +124,7 @@ impl Worker {
     fn new() -> Self {
         Self {
             backend: None,
+            source: SourceKind::Phone,
             caps: vec![],
             camera_id: String::new(),
             outcome: None,
@@ -120,6 +143,8 @@ impl Worker {
             auto_save: true,
             run: None,
             message: String::new(),
+            device_label: "No device connected".into(),
+            frame_progress: None,
             preview: None,
             histogram: vec![],
             preview_mean: None,
@@ -145,6 +170,7 @@ impl Worker {
         match action {
             UiAction::Connect => self.connect(),
             UiAction::Disconnect => self.disconnect(),
+            UiAction::SetSource(source) => self.set_source(source),
             UiAction::SelectCamera(id) => self.select_camera(id),
             UiAction::SetExposure(ns) => self.set_exposure(ns),
             UiAction::SetIso(iso) => self.set_iso(iso),
@@ -204,12 +230,37 @@ impl Worker {
         }
     }
 
+    fn active_source(&self) -> Source {
+        // Explicit env override wins (scripting/CI); otherwise the UI choice.
+        // Phone = Pixel over ADB, the default. Simulator is explicit opt-in.
+        if std::env::var("DEEPSKY_SOURCE").unwrap_or_default().is_empty() {
+            match self.source {
+                SourceKind::Phone => Source::Adb(None),
+                SourceKind::Simulator => Source::Simulator { realtime: false },
+            }
+        } else {
+            source_from_env()
+        }
+    }
+
+    fn set_source(&mut self, source: SourceKind) {
+        if self.backend.is_some() || self.run.is_some() {
+            self.fail("disconnect first, then switch source".into());
+            return;
+        }
+        self.source = source;
+        self.message.clear();
+    }
+
     fn connect(&mut self) {
-        if self.backend.is_some() {
+        if self.backend.is_some() || self.run.is_some() {
             self.fail("already connected".into());
             return;
         }
-        let source = source_from_env();
+        self.connect_with(self.active_source());
+    }
+
+    fn connect_with(&mut self, source: Source) {
         match connect_source(&source) {
             Ok(mut backend) => match backend.discover() {
                 Ok(caps) => {
@@ -225,6 +276,11 @@ impl Worker {
                     };
                     self.caps = caps;
                     self.backend = Some(backend);
+                    self.device_label = self
+                        .backend
+                        .as_ref()
+                        .map(|b| b.id().to_string())
+                        .unwrap_or_else(|| "connected".into());
                     self.thermal = self.backend.as_mut().and_then(|b| b.thermal().ok());
                     self.message = format!("connected: {label}");
                     self.refresh_preview();
@@ -245,6 +301,8 @@ impl Worker {
         self.caps.clear();
         self.camera_id.clear();
         self.outcome = None;
+        self.device_label = "No device connected".into();
+        self.frame_progress = None;
         self.message = "disconnected".into();
     }
 
@@ -441,6 +499,8 @@ impl Worker {
             prepared,
             last_step: Instant::now() - Duration::from_nanos(SETTLE_DELAY_NS),
             since_thermal: 0,
+            capture: None,
+            pending_stop: false,
         });
         self.message = format!("sequence started: {} frame(s)", self.frames_total);
     }
@@ -518,10 +578,21 @@ impl Worker {
             self.fail(format!("{op}: no active sequence"));
             return;
         };
+        if op == "pause" && run.capture.is_some() {
+            self.fail("frame exposing, wait for frame end".into());
+            return;
+        }
         let result = match op {
             "pause" => run.runner.pause().map(|_| "paused".to_string()),
             "resume" => run.runner.resume().map(|_| "resumed".to_string()),
-            _ => run.runner.stop().map(|_| "stopped".to_string()),
+            _ => {
+                if run.capture.is_some() {
+                    run.pending_stop = true;
+                    Ok("stopping after current frame".to_string())
+                } else {
+                    run.runner.stop().map(|_| "stopped".to_string())
+                }
+            }
         };
         match result {
             Ok(message) => {
@@ -546,17 +617,32 @@ impl Worker {
         result
     }
 
-    /// Advance a running sequence by one frame when its settle delay elapsed.
+    /// Advance a running sequence. Polls an exposing frame every tick (so live
+    /// progress flows); starts the next frame once its settle delay elapsed.
     fn step(&mut self) {
-        let due = self.run.as_ref().is_some_and(|run| {
-            run.runner.state() == SequenceState::Running && run.last_step.elapsed() >= Duration::from_nanos(SETTLE_DELAY_NS)
-        });
-        if !due {
+        let capturing = self.run.as_ref().is_some_and(|run| run.capture.is_some());
+        if !capturing {
+            let due = self.run.as_ref().is_some_and(|run| {
+                run.runner.state() == SequenceState::Running && run.last_step.elapsed() >= Duration::from_nanos(SETTLE_DELAY_NS)
+            });
+            if !due {
+                return;
+            }
+        }
+        let mut run = self.run.take().expect("step implies active");
+        if run.capture.is_none() && run.pending_stop {
+            let _ = run.runner.stop();
+            let _ = self.abort_run(run, "stopped by user");
+            self.outcome = None;
+            self.message = "sequence stopped".into();
+            self.frame_progress = None;
             return;
         }
-        let mut run = self.run.take().expect("due implies active");
         let outcome = self.step_frame(&mut run);
         match outcome {
+            StepOutcome::Wait => {
+                self.run = Some(run);
+            }
             StepOutcome::Continue => {
                 run.last_step = Instant::now();
                 self.run = Some(run);
@@ -565,17 +651,23 @@ impl Worker {
                 let _ = run.prepared.disk.shutdown();
                 self.outcome = Some(run.prepared.outcome.clone());
                 self.message = message;
+                self.frame_progress = None;
                 self.refresh_preview();
             }
             StepOutcome::Failed(message) => {
                 let _ = self.abort_run(run, &message);
                 self.outcome = None;
                 self.message = message;
+                self.frame_progress = None;
             }
         }
     }
 
     fn step_frame(&mut self, run: &mut ActiveRun) -> StepOutcome {
+        // A frame is exposing off-thread: poll it, report live progress.
+        if run.capture.is_some() {
+            return self.poll_capture(run);
+        }
         if run.since_thermal >= THERMAL_EVERY_FRAMES {
             let status = self.backend.as_mut().expect("run implies connected").thermal();
             match status {
@@ -594,7 +686,6 @@ impl Worker {
                 }
             }
         }
-        let backend = self.backend.as_mut().expect("run implies connected");
         let index = match run.runner.next_frame() {
             Ok(Some(index)) => index,
             Ok(None) => {
@@ -607,43 +698,112 @@ impl Worker {
             }
         };
         run.since_thermal += 1;
-        let now = now_unix_ns().unwrap_or(0);
-        match capture_and_commit(
-            &mut **backend,
-            &run.prepared.disk,
-            &run.prepared.outcome,
-            &run.prepared.stream,
-            &run.prepared.ctx,
-            index,
-            now,
-        ) {
-            Ok(record) => {
-                self.last_sha = Some(record.sha256.clone());
-                match run.prepared.store.record_frame(record) {
-                    Ok(()) => match run.runner.frame_committed(index) {
-                        Ok(()) => {
-                            self.refresh_preview();
-                            StepOutcome::Continue
+        // Expose off the worker thread so progress snapshots keep flowing.
+        // The backend link moves into the thread and comes back with the frame.
+        let backend_box = self.backend.take().expect("run implies connected");
+        let exposure_s = run
+            .prepared
+            .outcome
+            .applied
+            .settings
+            .exposure_ns
+            .or(run.prepared.outcome.requested.settings.exposure_ns)
+            .map(|ns| ns as f32 / 1e9)
+            .unwrap_or(0.0);
+        let (tx, rx) = std::sync::mpsc::channel();
+        let spawn = std::thread::Builder::new()
+            .name(format!("deepsky-capture-{index}"))
+            .spawn(move || {
+                let mut backend_box = backend_box;
+                let result = backend_box.capture();
+                let _ = tx.send((backend_box, result));
+            });
+        match spawn {
+            Ok(_) => {
+                run.capture = Some(CaptureInFlight { rx, started: Instant::now(), exposure_s, index });
+                self.frame_progress = Some(0.0);
+                StepOutcome::Wait
+            }
+            Err(e) => {
+                // The backend moved into the unborn thread: the link is lost.
+                let _ = run.runner.stop();
+                StepOutcome::Failed(fatal(run, format!("cannot spawn capture thread: {e}")))
+            }
+        }
+    }
+
+    /// Poll an exposing frame: restore the link and commit on landing,
+    /// otherwise report live exposure progress.
+    fn poll_capture(&mut self, run: &mut ActiveRun) -> StepOutcome {
+        let cap = run.capture.as_mut().expect("polling live capture");
+        match cap.rx.try_recv() {
+            Ok((backend_box, capture_result)) => {
+                self.backend = Some(backend_box);
+                let index = cap.index;
+                run.capture = None;
+                self.frame_progress = None;
+                match capture_result {
+                    Ok(captured) => {
+                        let now = now_unix_ns().unwrap_or(0);
+                        match submit_frame(
+                            &run.prepared.disk,
+                            &run.prepared.outcome,
+                            &run.prepared.stream,
+                            &captured.metadata,
+                            captured.payload,
+                            &run.prepared.ctx,
+                            index,
+                            now,
+                        ) {
+                            Ok(record) => {
+                                self.last_sha = Some(record.sha256.clone());
+                                match run.prepared.store.record_frame(record) {
+                                    Ok(()) => match run.runner.frame_committed(index) {
+                                        Ok(()) => {
+                                            self.refresh_preview();
+                                            StepOutcome::Continue
+                                        }
+                                        Err(e) => StepOutcome::Failed(fatal(run, format!("commit law violated: {e}"))),
+                                    },
+                                    Err(e) => StepOutcome::Failed(fatal(run, format!("manifest commit: {e}"))),
+                                }
+                            }
+                            Err(e) => StepOutcome::Failed(fatal(run, format!("storage failed: {e}"))),
                         }
-                        Err(e) => StepOutcome::Failed(fatal(run, format!("commit law violated: {e}"))),
-                    },
-                    Err(e) => StepOutcome::Failed(fatal(run, format!("manifest commit: {e}"))),
+                    }
+                    Err(e) => {
+                        let retryable = matches!(e.code, ErrorCode::Timeout | ErrorCode::Io);
+                        match run.runner.frame_failed(index, retryable) {
+                            Ok(()) if run.runner.state() == SequenceState::Error => {
+                                StepOutcome::Failed(fatal(run, format!("capture failed: {e}")))
+                            }
+                            Ok(()) => {
+                                std::thread::sleep(Duration::from_millis(200));
+                                StepOutcome::Continue
+                            }
+                            Err(retry) => StepOutcome::Failed(fatal(run, format!("retry budget exhausted: {retry}"))),
+                        }
+                    }
                 }
             }
-            Err(ControllerError::Camera(e)) => {
-                let retryable = matches!(e.code, ErrorCode::Timeout | ErrorCode::Io);
-                match run.runner.frame_failed(index, retryable) {
-                    Ok(()) if run.runner.state() == SequenceState::Error => {
-                        StepOutcome::Failed(fatal(run, format!("capture failed: {e}")))
-                    }
-                    Ok(()) => {
-                        std::thread::sleep(Duration::from_millis(200));
-                        StepOutcome::Continue
-                    }
-                    Err(retry) => StepOutcome::Failed(fatal(run, format!("retry budget exhausted: {retry}"))),
-                }
+            Err(std::sync::mpsc::TryRecvError::Empty) => {
+                let elapsed = cap.started.elapsed().as_secs_f32();
+                let progress = if cap.exposure_s > 0.0 {
+                    (elapsed / cap.exposure_s).min(1.0)
+                } else {
+                    0.0
+                };
+                self.frame_progress = Some(progress);
+                StepOutcome::Wait
             }
-            Err(e) => StepOutcome::Failed(fatal(run, format!("storage failed: {e}"))),
+            Err(std::sync::mpsc::TryRecvError::Disconnected) => {
+                // The capture thread died holding the link: it is gone.
+                run.capture = None;
+                self.backend = None;
+                self.frame_progress = None;
+                let _ = run.runner.stop();
+                StepOutcome::Failed(fatal(run, "capture thread died; camera link lost".into()))
+            }
         }
     }
 
@@ -796,8 +956,13 @@ impl Worker {
             SequenceState::Validating | SequenceState::Preparing | SequenceState::Recovering | SequenceState::Completing => SequenceStatus::Running,
         };
         let mut snap = UiSnapshot::default();
-        snap.connected = self.backend.is_some();
-        snap.device = self.backend.as_ref().map(|b| b.id().to_string()).unwrap_or_else(|| "No device connected".into());
+        let capturing = self.run.as_ref().is_some_and(|run| run.capture.is_some());
+        snap.connected = self.backend.is_some() || capturing;
+        snap.device = self
+            .backend
+            .as_ref()
+            .map(|b| b.id().to_string())
+            .unwrap_or_else(|| self.device_label.clone());
         snap.camera_id = self.camera_id.clone();
         snap.cameras = self.caps.iter().map(|c| CameraChoice {
             id: c.camera_id.clone(),
@@ -832,6 +997,7 @@ impl Worker {
         snap.frames_done = done;
         snap.frames_total = total;
         snap.sequence = sequence;
+        snap.frame_progress = self.frame_progress;
         snap.frame_type = self.frame_kind;
         snap.preview = self.preview.clone();
         snap.histogram = self.histogram.clone();
@@ -871,6 +1037,8 @@ fn fatal(run: &mut ActiveRun, message: String) -> String {
 
 enum StepOutcome {
     Continue,
+    /// Frame still exposing (or polled without landing): keep the run, no timer reset.
+    Wait,
     Finished(String),
     Failed(String),
 }
@@ -937,5 +1105,30 @@ mod tests {
         assert_eq!(worker.message, "exposure range not announced");
         worker.set_zoom(0.5);
         assert!(worker.message.contains("below 1.0x"));
+    }
+
+    #[test]
+    fn live_progress_flows_during_exposure() {
+        let dir = std::env::temp_dir().join(format!("deepsky-progress-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        let mut worker = Worker::new();
+        worker.connect_with(Source::Simulator { realtime: true });
+        assert!(worker.backend.is_some(), "simulator must connect");
+        worker.destination = dir.clone();
+        worker.frames_total = 1;
+        worker.set_exposure(2_000_000_000);
+        assert!(worker.message.is_empty(), "2 s must be announced: {}", worker.message);
+        worker.start_sequence();
+        assert!(worker.run.is_some(), "run must start: {}", worker.message);
+        // First step spawns the exposing thread; second step polls it.
+        worker.step();
+        assert!(worker.run.as_ref().is_some_and(|run| run.capture.is_some()));
+        std::thread::sleep(Duration::from_millis(400));
+        worker.step();
+        match worker.frame_progress {
+            Some(p) => assert!(p > 0.0 && p < 1.0, "progress must advance mid-exposure, got {p}"),
+            None => panic!("frame_progress must be Some while exposing"),
+        }
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

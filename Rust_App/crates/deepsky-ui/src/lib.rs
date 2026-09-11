@@ -10,8 +10,6 @@ pub mod widgets;
 pub mod bridge;
 #[cfg(feature = "desktop")]
 mod desktop;
-#[cfg(feature = "desktop")]
-mod chrome;
 pub use bridge::*;
 #[cfg(feature = "desktop")]
 pub use desktop::run;

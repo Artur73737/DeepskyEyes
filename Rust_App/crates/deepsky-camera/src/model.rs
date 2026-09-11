@@ -95,7 +95,10 @@ impl CameraCapabilities {
     }
     pub fn validate(&self) -> CameraResult<()> {
         for r in [self.exposure_ns, self.sensitivity, self.frame_duration_ns, self.focus_millidiopters, self.zoom_x1000, self.wb_kelvin, self.wb_tint, self.wb_gain_x1000].into_iter().flatten() { r.validate()?; }
-        for r in [self.exposure_ns, self.sensitivity, self.frame_duration_ns, self.zoom_x1000, self.wb_kelvin, self.wb_gain_x1000].into_iter().flatten() { if r.min == 0 { return Err(CameraError::new(ErrorCode::InvalidCapabilities, "positive range has zero minimum")); } }
+        // frame_duration_ns is exempt: a zero minimum means "no lower bound
+        // announced" (SENSOR_INFO_MAX_FRAME_DURATION only carries a maximum,
+        // as seen on Pixel 8 Pro), not a broken capability.
+        for r in [self.exposure_ns, self.sensitivity, self.zoom_x1000, self.wb_kelvin, self.wb_gain_x1000].into_iter().flatten() { if r.min == 0 { return Err(CameraError::new(ErrorCode::InvalidCapabilities, "positive range has zero minimum")); } }
         if self.streams.iter().chain(&self.preview_streams).any(|s| s.width == 0 || s.height == 0) { return Err(CameraError::new(ErrorCode::InvalidCapabilities, "zero stream size")); }
         Ok(())
     }

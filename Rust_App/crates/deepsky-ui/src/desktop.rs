@@ -16,7 +16,7 @@ use std::{
 /// and both channel counterparts. Closing the window emits `Shutdown`.
 pub fn run(initial: UiSnapshot, snapshots: Receiver<UiSnapshot>, actions: Sender<UiAction>) {
     Application::new().run(move |cx: &mut App| {
-        let bounds = Bounds::centered(None, size(px(1440.), px(920.)), cx);
+        let bounds = Bounds::centered(None, size(px(1280.), px(800.)), cx);
         let close = actions.clone();
         cx.on_window_closed(move |cx| {
             if cx.windows().is_empty() {
@@ -28,9 +28,9 @@ pub fn run(initial: UiSnapshot, snapshots: Receiver<UiSnapshot>, actions: Sender
         if let Err(error) = cx.open_window(
             WindowOptions {
                 window_bounds: Some(WindowBounds::Windowed(bounds)),
-                window_min_size: Some(size(px(1050.), px(700.))),
+                window_min_size: Some(size(px(960.), px(620.))),
                 titlebar: Some(TitlebarOptions {
-                    title: Some(crate::chrome::WINDOW_TITLE.into()),
+                    title: Some("DeepskyEyes · Mission control".into()),
                     ..Default::default()
                 }),
                 ..Default::default()
@@ -40,9 +40,8 @@ pub fn run(initial: UiSnapshot, snapshots: Receiver<UiSnapshot>, actions: Sender
             eprintln!("Cannot open DeepskyEyes window: {error}");
             cx.quit();
         }
-        // Frameless app window: our own title bar takes over (native caption
-        // stripped on a helper thread; thick frame keeps OS resize working).
-        crate::chrome::strip_caption_when_ready();
+        // Native Windows caption stays in place: minimize / maximize / close
+        // and window drag are the operating system's own controls.
         cx.activate(true);
     });
 }
@@ -131,50 +130,10 @@ impl Page {
     }
 }
 
-/// Custom title-bar menus. Every item performs a real action.
-#[derive(Clone, Copy, PartialEq, Eq)]
-enum MenuId {
-    File,
-    View,
-    Tools,
-    Settings,
-    Help,
-}
-impl MenuId {
-    fn label(self) -> &'static str {
-        match self {
-            Self::File => "File",
-            Self::View => "View",
-            Self::Tools => "Tools",
-            Self::Settings => "Settings",
-            Self::Help => "Help",
-        }
-    }
-}
-
-/// Commands behind title-bar menu items. Nothing here is decorative.
-#[derive(Clone)]
-enum MenuCommand {
-    Send(UiAction),
-    Page(Page),
-    About,
-    Quit,
-}
-
-/// Window controls on the custom title bar.
-#[derive(Clone, Copy)]
-enum ChromeAction {
-    Minimize,
-    Maximize,
-    Close,
-}
-
 struct Desktop {
     state: UiSnapshot,
     actions: Sender<UiAction>,
     page: Page,
-    menu: Option<MenuId>,
-    notice: String,
     image: Option<Arc<Image>>,
     image_revision: Option<u64>,
     preview_cover: bool,
@@ -228,8 +187,6 @@ impl Desktop {
             state,
             actions,
             page: Page::Dashboard,
-            menu: None,
-            notice: String::new(),
             image: None,
             image_revision: None,
             preview_cover: true,
@@ -295,7 +252,6 @@ impl Desktop {
             self.error = "Application worker unavailable".into();
         } else {
             self.error.clear();
-            self.notice.clear();
         }
         cx.notify();
     }
@@ -311,8 +267,8 @@ impl Desktop {
     ) -> Stateful<Div> {
         div()
             .id(id.into())
-            .px_3()
-            .py_2()
+            .px_2()
+            .py_1()
             .rounded(rad())
             .border_1()
             .border_color(rgb(EDGE))
@@ -340,8 +296,8 @@ impl Desktop {
     ) -> Stateful<Div> {
         div()
             .id(id.into())
-            .px_3()
-            .py_3()
+            .px_2()
+            .py_2()
             .rounded(rad())
             .flex()
             .items_center()
@@ -367,11 +323,11 @@ impl Desktop {
         enabled: bool,
         cx: &mut Context<Self>,
     ) -> Stateful<Div> {
-        let knob = div().size(px(18.)).rounded(px(999.)).bg(rgb(TEXT));
+        let knob = div().size(px(15.)).rounded(px(999.)).bg(rgb(TEXT));
         div()
             .id(id.into())
-            .w(px(46.))
-            .h(px(25.))
+            .w(px(40.))
+            .h(px(21.))
             .rounded(px(999.))
             .bg(rgb(if on { TOGGLE_ON } else { TOGGLE_OFF }))
             .p(px(3.))
@@ -413,43 +369,88 @@ impl Desktop {
         } else {
             UiAction::Connect
         };
+        let source = s.source;
+        let source_button = |id: &'static str, label: &'static str, kind: SourceKind| {
+            let active = source == kind;
+            div()
+                .id(id)
+                .flex_1()
+                .flex()
+                .flex_row()
+                .items_center()
+                .justify_center()
+                .px_2()
+                .py_1()
+                .rounded(px(8.))
+                .cursor_pointer()
+                .bg(rgb(if active { PANEL_ACTIVE } else { PANEL }))
+                .text_color(rgb(if active { TEXT } else { MUTED }))
+                .border_1()
+                .border_color(rgb(EDGE))
+                .child(label)
+                .on_click(cx.listener(move |view, _, _, cx| {
+                    view.send(UiAction::SetSource(kind), cx);
+                }))
+        };
         div()
             .id("device-card")
             .flex()
-            .flex_row()
-            .items_center()
+            .flex_col()
             .gap_2()
-            .p_3()
+            .p_2()
             .bg(rgb(PANEL))
             .border_1()
             .border_color(rgb(EDGE))
             .rounded(rad())
-            .cursor_pointer()
-            .child(div().text_xl().text_color(rgb(BLUE)).child("✆"))
+            .child(
+                div()
+                    .id("device-connect")
+                    .flex()
+                    .flex_row()
+                    .items_center()
+                    .gap_2()
+                    .cursor_pointer()
+                    .child(div().text_lg().text_color(rgb(BLUE)).child("✆"))
+                    .child(
+                        div()
+                            .flex()
+                            .flex_col()
+                            .flex_1()
+                            .min_w_0()
+                            .child(div().text_color(rgb(TEXT)).child(s.device.clone()))
+                            .child(
+                                div()
+                                    .text_xs()
+                                    .text_color(rgb(if connected { GREEN } else { MUTED }))
+                                    .child(if connected { "● Connected" } else { "○ Offline" }),
+                            )
+                            .child(
+                                div()
+                                    .text_xs()
+                                    .text_color(rgb(MUTED))
+                                    .child(format!("USB · {:.0} MB/s", s.rx_mbps.max(0.0))),
+                            ),
+                    )
+                    .child(div().text_color(rgb(MUTED)).child("›"))
+                    .on_click(cx.listener(move |view, _, _, cx| {
+                        view.send(action.clone(), cx);
+                    })),
+            )
             .child(
                 div()
                     .flex()
-                    .flex_col()
-                    .flex_1()
-                    .min_w_0()
-                    .child(div().text_color(rgb(TEXT)).child(s.device.clone()))
-                    .child(
-                        div()
-                            .text_sm()
-                            .text_color(rgb(if connected { GREEN } else { MUTED }))
-                            .child(if connected { "● Connected" } else { "○ Offline" }),
-                    )
+                    .flex_row()
+                    .items_center()
+                    .gap_1()
                     .child(
                         div()
                             .text_xs()
                             .text_color(rgb(MUTED))
-                            .child(format!("USB · {:.0} MB/s", s.rx_mbps.max(0.0))),
-                    ),
+                            .child("Src"),
+                    )
+                    .child(source_button("src-phone", "Phone", SourceKind::Phone))
+                    .child(source_button("src-sim", "Sim", SourceKind::Simulator)),
             )
-            .child(div().text_color(rgb(MUTED)).child("›"))
-            .on_click(cx.listener(move |view, _, _, cx| {
-                view.send(action.clone(), cx);
-            }))
     }
 
     fn camera_card(&self, cx: &mut Context<Self>) -> Stateful<Div> {
@@ -479,13 +480,13 @@ impl Desktop {
             .flex_row()
             .items_center()
             .gap_2()
-            .p_3()
+            .p_2()
             .bg(rgb(PANEL))
             .border_1()
             .border_color(rgb(EDGE))
             .rounded(rad())
             .cursor_pointer()
-            .child(div().text_xl().text_color(rgb(TEXT)).child("◉"))
+            .child(div().text_lg().text_color(rgb(TEXT)).child("◉"))
             .child(
                 div()
                     .flex()
@@ -493,7 +494,7 @@ impl Desktop {
                     .flex_1()
                     .min_w_0()
                     .child(div().text_color(rgb(TEXT)).child(title))
-                    .child(div().text_sm().text_color(rgb(MUTED)).child(subtitle)),
+                    .child(div().text_xs().text_color(rgb(MUTED)).child(subtitle)),
             )
             .child(div().text_color(rgb(MUTED)).child("∨"))
             .on_click(cx.listener(move |view, _, _, cx| {
@@ -512,6 +513,7 @@ impl Desktop {
             (Page::Calibration, "⌖"),
             (Page::Sessions, "▤"),
             (Page::Diagnostics, "∿"),
+            (Page::Settings, "⚙"),
         ] {
             let active = self.page == page;
             let title = page.title();
@@ -522,8 +524,8 @@ impl Desktop {
                     .flex_row()
                     .items_center()
                     .gap_2()
-                    .px_3()
-                    .py_2()
+                    .px_2()
+                    .py_1()
                     .rounded(rad())
                     .cursor_pointer()
                     .bg(rgb(if active { PANEL_ACTIVE } else { PANEL }))
@@ -537,7 +539,27 @@ impl Desktop {
                     })),
             );
         }
-        nav
+        nav.child(
+            div()
+                .id("nav-quit")
+                .flex()
+                .flex_row()
+                .items_center()
+                .gap_2()
+                .px_2()
+                .py_1()
+                .rounded(rad())
+                .cursor_pointer()
+                .bg(rgb(PANEL))
+                .text_color(rgb(MUTED))
+                .hover(|d| d.bg(rgb(0xc42b1c)).text_color(rgb(0xffffff)))
+                .child(div().w(px(22.)).child("×"))
+                .child("Quit")
+                .on_click(cx.listener(move |view, _, window, cx| {
+                    view.send(UiAction::Shutdown, cx);
+                    window.remove_window();
+                })),
+        )
     }
 
     fn session_card(&self) -> Div {
@@ -555,7 +577,7 @@ impl Desktop {
             .map(|session| format!("Session {}", session.id))
             .unwrap_or_else(|| s.destination.clone());
         panel()
-            .p_3()
+            .p_2()
             .gap_2()
             .child(
                 div()
@@ -577,14 +599,14 @@ impl Desktop {
                     .child(div().text_color(rgb(MUTED)).child("›")),
             )
             .child(div().text_color(rgb(TEXT)).child(project))
-            .child(div().text_sm().text_color(rgb(MUTED)).child(session_id))
+            .child(div().text_xs().text_color(rgb(MUTED)).child(session_id))
             .child(
                 div()
                     .flex()
                     .flex_row()
                     .items_center()
                     .justify_between()
-                    .text_sm()
+                    .text_xs()
                     .child(div().text_color(rgb(TEXT)).child(format!(
                         "{:03} / {} frames",
                         s.frames_done, s.frames_total
@@ -593,11 +615,11 @@ impl Desktop {
             )
             .child(
                 div()
-                    .h(px(6.))
+                    .h(px(4.))
                     .w_full()
                     .rounded(px(999.))
                     .bg(rgb(PANEL_ACTIVE))
-                    .child(div().h(px(6.)).rounded(px(999.)).bg(rgb(BLUE)).w(relative(
+                    .child(div().h(px(4.)).rounded(px(999.)).bg(rgb(BLUE)).w(relative(
                         (s.frames_done as f32 / total as f32).clamp(0.0, 1.0),
                     ))),
             )
@@ -649,7 +671,7 @@ impl Desktop {
                 .flex_row()
                 .items_center()
                 .gap_2()
-                .text_sm()
+                .text_xs()
                 .child(dot(color))
                 .child(div().text_color(rgb(TEXT)).child(label))
         };
@@ -658,7 +680,7 @@ impl Desktop {
             .flex()
             .flex_col()
             .gap_2()
-            .p_3()
+            .p_2()
             .bg(rgb(PANEL))
             .border_1()
             .border_color(rgb(EDGE))
@@ -694,7 +716,7 @@ impl Desktop {
     fn sidebar(&self, cx: &mut Context<Self>) -> Stateful<Div> {
         div()
             .id("sidebar")
-            .w(px(232.))
+            .w(px(180.))
             .flex_shrink_0()
             .flex()
             .flex_col()
@@ -717,13 +739,13 @@ impl Desktop {
             .flex_row()
             .items_center()
             .gap_2()
-            .px_3()
+            .px_2()
             .py_1()
             .rounded(px(999.))
             .bg(rgb(OVERLAY))
             .border_1()
             .border_color(rgb(EDGE))
-            .text_sm()
+            .text_xs()
             .text_color(rgb(TEXT))
             .child(text.into())
     }
@@ -749,17 +771,17 @@ impl Desktop {
                 .gap_2()
                 .bg(rgb(0x02060d))
                 .text_color(rgb(MUTED))
-                .child(div().text_xl().child("✦"))
+                .child(div().text_lg().child("✦"))
                 .child("Waiting for preview")
                 .child(
                     div()
-                        .text_sm()
+                        .text_xs()
                         .child("Frames are supplied by the application preview pipeline"),
                 )
                 .into_any_element()
         };
         // Luminance bars sampled from the (R+G+B concatenated) histogram.
-        let mut bars = div().flex().flex_row().items_end().gap(px(1.)).h(px(36.)).w(px(104.));
+        let mut bars = div().flex().flex_row().items_end().gap(px(1.)).h(px(28.)).w(px(88.));
         if s.histogram.len() >= 768 {
             let max = s
                 .histogram
@@ -850,13 +872,13 @@ impl Desktop {
                             .justify_center()
                             .child(
                                 div()
-                                    .px_3()
+                                    .px_2()
                                     .py_1()
                                     .rounded(px(999.))
                                     .bg(rgb(OVERLAY))
                                     .border_1()
                                     .border_color(rgb(EDGE))
-                                    .text_sm()
+                                    .text_xs()
                                     .text_color(rgb(color))
                                     .child(text),
                             )
@@ -871,7 +893,7 @@ impl Desktop {
                             .flex()
                             .flex_col()
                             .gap_1()
-                            .p_3()
+                            .p_2()
                             .rounded(rad())
                             .bg(rgb(OVERLAY))
                             .border_1()
@@ -897,14 +919,14 @@ impl Desktop {
                             .left(px(12.))
                             .flex()
                             .flex_col()
-                            .px_3()
-                            .py_2()
+                            .px_2()
+                            .py_1()
                             .rounded(rad())
                             .bg(rgb(OVERLAY))
                             .border_1()
                             .border_color(rgb(EDGE))
                             .child(div().text_color(rgb(TEXT)).child(caption_title))
-                            .child(div().text_sm().text_color(rgb(MUTED)).child(caption_sub)),
+                            .child(div().text_xs().text_color(rgb(MUTED)).child(caption_sub)),
                     )
                     .child(
                         div()
@@ -916,7 +938,7 @@ impl Desktop {
                             .items_center()
                             .gap_2()
                             .px_2()
-                            .py_2()
+                            .py_1()
                             .rounded(rad())
                             .bg(rgb(OVERLAY))
                             .border_1()
@@ -925,7 +947,7 @@ impl Desktop {
                             .child(self.icon_button("preview-grid", "▦", Page::Preview, cx))
                             .child(self.icon_button_lock(cx))
                             .child(self.scale_button(cx))
-                            .child(div().text_sm().child(if self.preview_cover { "Fill" } else { "Fit" })),
+                            .child(div().text_xs().child(if self.preview_cover { "Fill" } else { "Fit" })),
                     ),
             )
     }
@@ -1034,9 +1056,22 @@ impl Desktop {
             .or(PRESETS.first())
             .copied()
             .unwrap_or(s.exposure_ns);
-        panel()
-            .p_3()
-            .gap_2()
+        let mut panel = panel().p_2().gap_2().child(
+            div()
+                .flex()
+                .flex_row()
+                .items_center()
+                .gap_2()
+                .text_lg()
+                .text_color(rgb(TEXT))
+                .child("◎")
+                .child("Camera"),
+        );
+        for block in self.camera_control_blocks(cx) {
+            panel = panel.child(block);
+        }
+        panel
+            .child(divider())
             .child(
                 div()
                     .flex()
@@ -1214,7 +1249,7 @@ impl Desktop {
                         .flex()
                         .flex_col()
                         .child(div().text_xs().text_color(rgb(MUTED)).child(top))
-                        .child(div().text_sm().text_color(rgb(TEXT)).child(bottom)),
+                        .child(div().text_xs().text_color(rgb(TEXT)).child(bottom)),
                 )
         };
         let tab = |id: &'static str, icon: &'static str, label: &'static str, page: Page, active: bool| {
@@ -1225,8 +1260,8 @@ impl Desktop {
                 .items_center()
                 .gap_2()
                 .flex_shrink_0()
-                .px_3()
-                .py_2()
+                .px_2()
+                .py_1()
                 .rounded(rad())
                 .cursor_pointer()
                 .bg(rgb(if active { BEIGE } else { PANEL }))
@@ -1242,7 +1277,7 @@ impl Desktop {
         };
         panel()
             .flex_shrink_0()
-            .p_3()
+            .p_2()
             .child(
                 div()
                     .id("bottom-scroll")
@@ -1265,299 +1300,54 @@ impl Desktop {
                     .child(divider_v())
                     .child(status("∿", "Diagnostics".into(), s.thermal.clone()))
                     .child(divider_v())
-                    .child(div().flex_1().min_w(px(8.)))
-                    .child(tab("tab-preview", "◉", "Preview", Page::Preview, self.page == Page::Preview))
-                    .child(tab("tab-acquire", "◎", "Acquisition", Page::Camera, self.page == Page::Camera))
-                    .child(tab("tab-sequence", "☰", "Sequence", Page::Sequence, self.page == Page::Sequence))
-                    .child(tab("tab-storage", "▤", "Storage", Page::Sessions, self.page == Page::Sessions))
-                    .child(tab("tab-settings", "⚙", "Settings", Page::Settings, self.page == Page::Settings)),
-            )
-    }
-
-    /// Custom title bar: draggable brand + menus on the left, working
-    /// minimize / maximize / close on the right. The native caption is
-    /// stripped at startup (see chrome.rs); the thick frame keeps OS resize.
-    fn title_bar(&self, window: &mut Window, cx: &mut Context<Self>) -> Div {
-        div()
-            .flex()
-            .flex_col()
-            .flex_shrink_0()
-            .child(
-                div()
-                    .flex()
-                    .flex_row()
-                    .items_center()
-                    .gap_1()
-                    .h(px(40.))
                     .child(
                         div()
                             .flex()
                             .flex_row()
                             .items_center()
                             .gap_2()
-                            .px_2()
-                            .h_full()
-                            .on_mouse_down(MouseButton::Left, |event, _, _| {
-                                if event.click_count >= 2 {
-                                    crate::chrome::toggle_maximize();
-                                } else {
-                                    crate::chrome::begin_drag();
-                                }
-                            })
+                            .flex_shrink_0()
+                            .child(div().text_xs().text_color(rgb(MUTED)).child("Frame"))
                             .child(
                                 div()
-                                    .size(px(24.))
-                                    .rounded(px(7.))
+                                    .w(px(120.))
+                                    .h(px(6.))
+                                    .rounded(px(999.))
                                     .bg(rgb(PANEL_ACTIVE))
-                                    .border_1()
-                                    .border_color(rgb(EDGE))
-                                    .flex()
-                                    .items_center()
-                                    .justify_center()
-                                    .text_color(rgb(TEXT))
-                                    .child("✦"),
+                                    .child(div().h(px(6.)).rounded(px(999.)).bg(rgb(BLUE)).w(relative(
+                                        s.frame_progress.unwrap_or(0.0).clamp(0.0, 1.0),
+                                    ))),
                             )
-                            .child(div().text_color(rgb(TEXT)).child("DeepskyEyes")),
+                            .child(
+                                div().text_sm().text_color(rgb(TEXT)).child(match s.frame_progress {
+                                    Some(p) => {
+                                        let total_s = s.exposure_ns as f64 / 1e9;
+                                        format!("{:.1} / {} s", p as f64 * total_s, total_s)
+                                    }
+                                    None => "—".into(),
+                                }),
+                            ),
                     )
-                    .child(self.menu_entry(MenuId::File, cx))
-                    .child(self.menu_entry(MenuId::View, cx))
-                    .child(self.menu_entry(MenuId::Tools, cx))
-                    .child(self.menu_entry(MenuId::Settings, cx))
-                    .child(self.menu_entry(MenuId::Help, cx))
+                    .child(divider_v())
+                    .child(div().flex_1().min_w(px(8.)))
+                    .child(tab("tab-preview", "◉", "Preview", Page::Preview, self.page == Page::Preview))
+                    .child(tab("tab-acquire", "◎", "Acquisition", Page::Camera, self.page == Page::Camera))
+                    .child(tab("tab-sequence", "☰", "Sequence", Page::Sequence, self.page == Page::Sequence))
+                    .child(tab("tab-storage", "▤", "Storage", Page::Sessions, self.page == Page::Sessions))
+                    .child(tab("tab-settings", "⚙", "Settings", Page::Settings, self.page == Page::Settings))
+                    .child(divider_v())
                     .child(
                         div()
-                            .flex_1()
-                            .h_full()
-                            .on_mouse_down(MouseButton::Left, |event, _, _| {
-                                if event.click_count >= 2 {
-                                    crate::chrome::toggle_maximize();
-                                } else {
-                                    crate::chrome::begin_drag();
-                                }
-                            }),
-                    )
-                    .child(
-                        div()
-                            .text_sm()
-                            .text_color(rgb(if !self.error.is_empty() {
-                                DANGER
-                            } else if !self.notice.is_empty() {
-                                TEXT
+                            .flex_shrink_0()
+                            .text_xs()
+                            .text_color(rgb(if self.error.is_empty() { MUTED } else { DANGER }))
+                            .child(if self.error.is_empty() {
+                                s.message.clone()
                             } else {
-                                MUTED
-                            }))
-                            .child(if !self.error.is_empty() {
                                 self.error.clone()
-                            } else if !self.notice.is_empty() {
-                                self.notice.clone()
-                            } else {
-                                String::new()
                             }),
-                    )
-                    .child(self.chrome_button("win-min", "—", false, ChromeAction::Minimize, window, cx))
-                    .child(self.chrome_button(
-                        "win-max",
-                        if window.is_maximized() { "❐" } else { "▢" },
-                        false,
-                        ChromeAction::Maximize,
-                        window,
-                        cx,
-                    ))
-                    .child(self.chrome_button("win-close", "✕", true, ChromeAction::Close, window, cx)),
+                    ),
             )
-            .child(divider())
-    }
-
-    fn chrome_button(
-        &self,
-        id: impl Into<SharedString>,
-        glyph: impl Into<String>,
-        danger: bool,
-        action: ChromeAction,
-        _window: &mut Window,
-        cx: &mut Context<Self>,
-    ) -> Stateful<Div> {
-        let label = glyph.into();
-        div()
-            .id(id.into())
-            .w(px(46.))
-            .h(px(40.))
-            .flex()
-            .items_center()
-            .justify_center()
-            .cursor_pointer()
-            .text_color(rgb(TEXT))
-            .hover(|d| {
-                if danger {
-                    d.bg(rgb(0xc42b1c)).text_color(rgb(0xffffff))
-                } else {
-                    d.bg(rgb(PANEL_ACTIVE))
-                }
-            })
-            .child(label)
-            .on_click(cx.listener(move |view, _, window, cx| match action {
-                ChromeAction::Minimize => window.minimize_window(),
-                ChromeAction::Maximize => {
-                    crate::chrome::toggle_maximize();
-                }
-                ChromeAction::Close => {
-                    view.send(UiAction::Shutdown, cx);
-                    window.remove_window();
-                }
-            }))
-    }
-
-    /// Title-bar menu with a working dropdown. Every item does something real.
-    fn menu_entry(&self, id: MenuId, cx: &mut Context<Self>) -> Div {
-        let open = self.menu == Some(id);
-        let mut entry = div().relative().child(
-            div()
-                .id(id.label())
-                .px_3()
-                .h(px(40.))
-                .flex()
-                .items_center()
-                .cursor_pointer()
-                .bg(rgb(if open { PANEL_ACTIVE } else { BG }))
-                .text_color(rgb(if open { TEXT } else { MUTED }))
-                .hover(|d| d.bg(rgb(PANEL_ACTIVE)).text_color(rgb(TEXT)))
-                .child(id.label())
-                .on_click(cx.listener(move |view, _, _, cx| {
-                    view.menu = if view.menu == Some(id) { None } else { Some(id) };
-                    view.notice.clear();
-                    cx.notify();
-                })),
-        );
-        if open {
-            let mut list = div()
-                .absolute()
-                .top(relative(1.))
-                .left(px(0.))
-                .mt(px(4.))
-                .min_w(px(230.))
-                .bg(rgb(PANEL))
-                .border_1()
-                .border_color(rgb(EDGE))
-                .rounded(rad())
-                .p_2()
-                .flex()
-                .flex_col()
-                .gap_1();
-            for (label, command, enabled) in self.menu_items(id) {
-                list = list.child(self.menu_item(label, command, enabled, cx));
-            }
-            entry = entry.child(list);
-        }
-        entry
-    }
-
-    fn menu_items(&self, id: MenuId) -> Vec<(&'static str, MenuCommand, bool)> {
-        let s = &self.state;
-        let active = matches!(s.sequence, SequenceStatus::Running | SequenceStatus::Paused);
-        match id {
-            MenuId::File => vec![
-                (
-                    if s.connected { "Disconnect" } else { "Connect" },
-                    MenuCommand::Send(if s.connected {
-                        UiAction::Disconnect
-                    } else {
-                        UiAction::Connect
-                    }),
-                    true,
-                ),
-                ("Choose destination…", MenuCommand::Send(UiAction::ChooseDestination), true),
-                ("Quit", MenuCommand::Quit, true),
-            ],
-            MenuId::View => vec![
-                ("Dashboard", MenuCommand::Page(Page::Dashboard), true),
-                ("Preview", MenuCommand::Page(Page::Preview), true),
-                ("Acquisition", MenuCommand::Page(Page::Camera), true),
-                ("Sequence", MenuCommand::Page(Page::Sequence), true),
-                ("Calibration", MenuCommand::Page(Page::Calibration), true),
-                ("Sessions", MenuCommand::Page(Page::Sessions), true),
-                ("Diagnostics", MenuCommand::Page(Page::Diagnostics), true),
-                ("Settings", MenuCommand::Page(Page::Settings), true),
-            ],
-            MenuId::Tools => {
-                let mut items = if active {
-                    vec![
-                        (
-                            if s.sequence == SequenceStatus::Paused { "Resume sequence" } else { "Pause sequence" },
-                            MenuCommand::Send(if s.sequence == SequenceStatus::Paused {
-                                UiAction::ResumeSequence
-                            } else {
-                                UiAction::PauseSequence
-                            }),
-                            true,
-                        ),
-                        ("Stop sequence", MenuCommand::Send(UiAction::StopSequence), true),
-                    ]
-                } else {
-                    vec![
-                        ("Capture one RAW", MenuCommand::Send(UiAction::CaptureOne), s.connected && s.raw_supported),
-                        ("Start sequence", MenuCommand::Send(UiAction::StartSequence), s.connected && s.frames_total > 0),
-                    ]
-                };
-                items.push(("Refresh diagnostics", MenuCommand::Send(UiAction::RefreshDiagnostics), true));
-                items.push(("Refresh sessions", MenuCommand::Send(UiAction::RefreshSessions), true));
-                items
-            }
-            MenuId::Settings => vec![
-                ("Choose destination…", MenuCommand::Send(UiAction::ChooseDestination), true),
-                (
-                    if s.auto_save { "Auto save: on" } else { "Auto save: off" },
-                    MenuCommand::Send(UiAction::SetAutoSave(!s.auto_save)),
-                    true,
-                ),
-                ("Open Settings page", MenuCommand::Page(Page::Settings), true),
-            ],
-            MenuId::Help => vec![("About DeepskyEyes", MenuCommand::About, true)],
-        }
-    }
-
-    fn menu_item(
-        &self,
-        label: &'static str,
-        command: MenuCommand,
-        enabled: bool,
-        cx: &mut Context<Self>,
-    ) -> Stateful<Div> {
-        div()
-            .id(SharedString::from(format!("menu-item-{label}")))
-            .px_3()
-            .py_2()
-            .rounded(rad())
-            .text_color(rgb(if enabled { TEXT } else { MUTED }))
-            .when(enabled, |d| {
-                d.cursor_pointer()
-                    .hover(|d| d.bg(rgb(PANEL_ACTIVE)))
-            })
-            .child(label)
-            .on_click(cx.listener(move |view, _, window, cx| {
-                if !enabled {
-                    return;
-                }
-                view.menu = None;
-                match command.clone() {
-                    MenuCommand::Send(action) => view.send(action, cx),
-                    MenuCommand::Page(page) => {
-                        view.page = page;
-                        view.notice.clear();
-                        cx.notify();
-                    }
-                    MenuCommand::About => {
-                        view.notice = format!(
-                            "DeepskyEyes {} · Pixel remote astrophotography (GPUI desktop)",
-                            env!("CARGO_PKG_VERSION")
-                        );
-                        cx.notify();
-                    }
-                    MenuCommand::Quit => {
-                        view.send(UiAction::Shutdown, cx);
-                        window.remove_window();
-                    }
-                }
-            }))
     }
 
     fn dashboard(&self, cx: &mut Context<Self>) -> Div {
@@ -1572,7 +1362,7 @@ impl Desktop {
             .child(
                 div()
                     .id("acquire-col")
-                    .w(px(280.))
+                    .w(px(224.))
                     .flex_shrink_0()
                     .flex()
                     .flex_col()
@@ -1582,170 +1372,194 @@ impl Desktop {
             )
     }
 
-    fn camera_page(&self, cx: &mut Context<Self>) -> Div {
+    /// Every camera control as elements, shared by the Camera page and the
+    /// right side panel. Button ids match in both trees on purpose: only one
+    /// tree renders at a time, so ids never collide.
+    fn camera_control_blocks(&self, cx: &mut Context<Self>) -> Vec<AnyElement> {
         let s = &self.state;
         let edit = s.connected
             && !s.locked
             && !matches!(s.sequence, SequenceStatus::Running | SequenceStatus::Paused);
-        let mut content = panel().p_3().gap_2().child(
-            div()
-                .text_lg()
-                .text_color(rgb(TEXT))
-                .child("Camera controls"),
-        );
+        let mut items: Vec<AnyElement> = Vec::new();
         for camera in &s.cameras {
-            content = content.child(self.button(
-                format!("camera-{}", camera.id),
-                format!(
-                    "{} {}",
-                    if s.camera_id == camera.id { "●" } else { "○" },
-                    camera.label
-                ),
-                UiAction::SelectCamera(camera.id.clone()),
-                edit,
-                cx,
-            ));
+            items.push(
+                self.button(
+                    format!("camera-{}", camera.id),
+                    format!(
+                        "{} {}",
+                        if s.camera_id == camera.id { "●" } else { "○" },
+                        camera.label
+                    ),
+                    UiAction::SelectCamera(camera.id.clone()),
+                    edit,
+                    cx,
+                )
+                .into_any_element(),
+            );
         }
         for &(w, h) in &s.resolutions {
-            content = content.child(self.button(
-                format!("res-{w}-{h}"),
-                format!("{w} × {h}"),
-                UiAction::SetResolution(w, h),
-                edit,
-                cx,
-            ));
+            items.push(
+                self.button(
+                    format!("res-{w}-{h}"),
+                    format!("{w} × {h}"),
+                    UiAction::SetResolution(w, h),
+                    edit,
+                    cx,
+                )
+                .into_any_element(),
+            );
         }
-        content = content
-            .child(Self::row("Sensor", s.sensor.clone()))
-            .child(Self::row("Hardware", s.hardware_level.clone()))
-            .child(Self::row("Exposure", fmt_exposure(s.exposure_ns)))
-            .child(
-                div()
-                    .flex()
-                    .flex_row()
-                    .gap_2()
-                    .child(self.button(
-                        "exp-down",
-                        "− 1 s",
-                        UiAction::SetExposure(s.exposure_range_ns.map_or(s.exposure_ns, |(lo, hi)| {
-                            s.exposure_ns.saturating_sub(1_000_000_000).clamp(lo, hi.max(lo))
-                        })),
-                        edit && s.exposure_range_ns.is_some(),
-                        cx,
-                    ))
-                    .child(self.button(
-                        "exp-up",
-                        "+ 1 s",
-                        UiAction::SetExposure(s.exposure_range_ns.map_or(s.exposure_ns, |(lo, hi)| {
-                            s.exposure_ns.saturating_add(1_000_000_000).clamp(lo, hi.max(lo))
-                        })),
-                        edit && s.exposure_range_ns.is_some(),
-                        cx,
-                    )),
-            )
-            .child(Self::row("Sensitivity", format!("ISO {}", s.iso)))
-            .child(
-                div()
-                    .flex()
-                    .flex_row()
-                    .gap_2()
-                    .child(self.button(
-                        "iso-down",
-                        "− 100",
-                        UiAction::SetIso(s.iso_range.map_or(s.iso, |(lo, hi)| {
-                            s.iso.saturating_sub(100).clamp(lo, hi.max(lo))
-                        })),
-                        edit && s.iso_range.is_some(),
-                        cx,
-                    ))
-                    .child(self.button(
-                        "iso-up",
-                        "+ 100",
-                        UiAction::SetIso(s.iso_range.map_or(s.iso, |(lo, hi)| {
-                            s.iso.saturating_add(100).clamp(lo, hi.max(lo))
-                        })),
-                        edit && s.iso_range.is_some(),
-                        cx,
-                    )),
-            )
-            .child(Self::row("Focus", format!("{:.2} D", s.focus_diopters)))
-            .child(
-                div()
-                    .flex()
-                    .flex_row()
-                    .gap_2()
-                    .child(self.button(
-                        "focus-down",
-                        "− 0.1 D",
-                        UiAction::SetFocus(s.focus_range.map_or(s.focus_diopters, |(lo, hi)| {
-                            (s.focus_diopters - 0.1).clamp(lo, hi.max(lo))
-                        })),
-                        edit && s.focus_range.is_some(),
-                        cx,
-                    ))
-                    .child(self.button(
-                        "focus-up",
-                        "+ 0.1 D",
-                        UiAction::SetFocus(s.focus_range.map_or(s.focus_diopters, |(lo, hi)| {
-                            (s.focus_diopters + 0.1).clamp(lo, hi.max(lo))
-                        })),
-                        edit && s.focus_range.is_some(),
-                        cx,
-                    )),
-            )
-            .child(Self::row("White balance", format!("{} K", s.white_balance_kelvin)))
-            .child(
-                div()
-                    .flex()
-                    .flex_row()
-                    .gap_2()
-                    .child(self.button(
-                        "wb-down",
-                        "− 250 K",
-                        UiAction::SetWhiteBalance(s.white_balance_kelvin.saturating_sub(250).max(1000)),
-                        edit && s.manual_white_balance,
-                        cx,
-                    ))
-                    .child(self.button(
-                        "wb-up",
-                        "+ 250 K",
-                        UiAction::SetWhiteBalance(s.white_balance_kelvin.saturating_add(250).min(15000)),
-                        edit && s.manual_white_balance,
-                        cx,
-                    )),
-            )
-            .child(Self::row("Zoom", format!("{:.1}×", s.zoom)))
-            .child(
-                div()
-                    .flex()
-                    .flex_row()
-                    .gap_2()
-                    .child(self.button(
-                        "zoom-down",
-                        "− 0.5×",
-                        UiAction::SetZoom(s.zoom_range.map_or(s.zoom, |(lo, hi)| {
-                            (s.zoom - 0.5).clamp(lo, hi.max(lo))
-                        })),
-                        edit && s.zoom_range.is_some(),
-                        cx,
-                    ))
-                    .child(self.button(
-                        "zoom-up",
-                        "+ 0.5×",
-                        UiAction::SetZoom(s.zoom_range.map_or(s.zoom, |(lo, hi)| {
-                            (s.zoom + 0.5).clamp(lo, hi.max(lo))
-                        })),
-                        edit && s.zoom_range.is_some(),
-                        cx,
-                    )),
-            )
-            .child(self.button(
+        items.push(Self::row("Sensor", s.sensor.clone()).into_any_element());
+        items.push(Self::row("Hardware", s.hardware_level.clone()).into_any_element());
+        items.push(Self::row("Exposure", fmt_exposure(s.exposure_ns)).into_any_element());
+        items.push(
+            div()
+                .flex()
+                .flex_row()
+                .gap_2()
+                .child(self.button(
+                    "exp-down",
+                    "− 1 s",
+                    UiAction::SetExposure(s.exposure_range_ns.map_or(s.exposure_ns, |(lo, hi)| {
+                        s.exposure_ns.saturating_sub(1_000_000_000).clamp(lo, hi.max(lo))
+                    })),
+                    edit && s.exposure_range_ns.is_some(),
+                    cx,
+                ))
+                .child(self.button(
+                    "exp-up",
+                    "+ 1 s",
+                    UiAction::SetExposure(s.exposure_range_ns.map_or(s.exposure_ns, |(lo, hi)| {
+                        s.exposure_ns.saturating_add(1_000_000_000).clamp(lo, hi.max(lo))
+                    })),
+                    edit && s.exposure_range_ns.is_some(),
+                    cx,
+                ))
+                .into_any_element(),
+        );
+        items.push(Self::row("Sensitivity", format!("ISO {}", s.iso)).into_any_element());
+        items.push(
+            div()
+                .flex()
+                .flex_row()
+                .gap_2()
+                .child(self.button(
+                    "iso-down",
+                    "− 100",
+                    UiAction::SetIso(s.iso_range.map_or(s.iso, |(lo, hi)| {
+                        s.iso.saturating_sub(100).clamp(lo, hi.max(lo))
+                    })),
+                    edit && s.iso_range.is_some(),
+                    cx,
+                ))
+                .child(self.button(
+                    "iso-up",
+                    "+ 100",
+                    UiAction::SetIso(s.iso_range.map_or(s.iso, |(lo, hi)| {
+                        s.iso.saturating_add(100).clamp(lo, hi.max(lo))
+                    })),
+                    edit && s.iso_range.is_some(),
+                    cx,
+                ))
+                .into_any_element(),
+        );
+        items.push(Self::row("Focus", format!("{:.2} D", s.focus_diopters)).into_any_element());
+        items.push(
+            div()
+                .flex()
+                .flex_row()
+                .gap_2()
+                .child(self.button(
+                    "focus-down",
+                    "− 0.1 D",
+                    UiAction::SetFocus(s.focus_range.map_or(s.focus_diopters, |(lo, hi)| {
+                        (s.focus_diopters - 0.1).clamp(lo, hi.max(lo))
+                    })),
+                    edit && s.focus_range.is_some(),
+                    cx,
+                ))
+                .child(self.button(
+                    "focus-up",
+                    "+ 0.1 D",
+                    UiAction::SetFocus(s.focus_range.map_or(s.focus_diopters, |(lo, hi)| {
+                        (s.focus_diopters + 0.1).clamp(lo, hi.max(lo))
+                    })),
+                    edit && s.focus_range.is_some(),
+                    cx,
+                ))
+                .into_any_element(),
+        );
+        items.push(Self::row("White balance", format!("{} K", s.white_balance_kelvin)).into_any_element());
+        items.push(
+            div()
+                .flex()
+                .flex_row()
+                .gap_2()
+                .child(self.button(
+                    "wb-down",
+                    "− 250 K",
+                    UiAction::SetWhiteBalance(s.white_balance_kelvin.saturating_sub(250).max(1000)),
+                    edit && s.manual_white_balance,
+                    cx,
+                ))
+                .child(self.button(
+                    "wb-up",
+                    "+ 250 K",
+                    UiAction::SetWhiteBalance(s.white_balance_kelvin.saturating_add(250).min(15000)),
+                    edit && s.manual_white_balance,
+                    cx,
+                ))
+                .into_any_element(),
+        );
+        items.push(Self::row("Zoom", format!("{:.1}×", s.zoom)).into_any_element());
+        items.push(
+            div()
+                .flex()
+                .flex_row()
+                .gap_2()
+                .child(self.button(
+                    "zoom-down",
+                    "− 0.5×",
+                    UiAction::SetZoom(s.zoom_range.map_or(s.zoom, |(lo, hi)| {
+                        (s.zoom - 0.5).clamp(lo, hi.max(lo))
+                    })),
+                    edit && s.zoom_range.is_some(),
+                    cx,
+                ))
+                .child(self.button(
+                    "zoom-up",
+                    "+ 0.5×",
+                    UiAction::SetZoom(s.zoom_range.map_or(s.zoom, |(lo, hi)| {
+                        (s.zoom + 0.5).clamp(lo, hi.max(lo))
+                    })),
+                    edit && s.zoom_range.is_some(),
+                    cx,
+                ))
+                .into_any_element(),
+        );
+        items.push(
+            self.button(
                 "lock",
                 if s.locked { "Unlock controls" } else { "Lock controls" },
                 UiAction::SetLocked(!s.locked),
                 s.connected,
                 cx,
-            ));
+            )
+            .into_any_element(),
+        );
+        items
+    }
+
+    fn camera_page(&self, cx: &mut Context<Self>) -> Div {
+        let mut content = panel().p_2().gap_2().child(
+            div()
+                .text_lg()
+                .text_color(rgb(TEXT))
+                .child("Camera controls"),
+        );
+        for item in self.camera_control_blocks(cx) {
+            content = content.child(item);
+        }
         div()
             .flex()
             .flex_row()
@@ -1772,7 +1586,7 @@ impl Desktop {
                     .flex_col()
                     .gap_2()
                     .child(
-                        panel().p_3().gap_2()
+                        panel().p_2().gap_2()
                             .child(div().text_lg().text_color(rgb(TEXT)).child("Sequence"))
                             .child(Self::row("Frames", format!("{:03} / {}", s.frames_done, s.frames_total)))
                             .child(Self::row("Integration", fmt_integration(s.frames_total, s.exposure_ns)))
@@ -1835,7 +1649,7 @@ impl Desktop {
                             )),
                     )
                     .child(
-                        panel().p_3().gap_2()
+                        panel().p_2().gap_2()
                             .child(div().text_lg().text_color(rgb(TEXT)).child("Output"))
                             .child(Self::row("Destination", s.destination.clone()))
                             .child(self.button(
@@ -1852,7 +1666,7 @@ impl Desktop {
     fn diagnostics_page(&self, cx: &mut Context<Self>) -> Div {
         let s = &self.state;
         let mut content = panel()
-            .p_3()
+            .p_2()
             .gap_2()
             .child(div().text_lg().text_color(rgb(TEXT)).child("Diagnostics · raw values"))
             .child(Self::row("Requested exposure (ns)", s.exposure_ns.to_string()))
@@ -1883,7 +1697,7 @@ impl Desktop {
     }
 
     fn simple_page(&self, cx: &mut Context<Self>, title: &str, body: Vec<AnyElement>) -> Div {
-        let mut content = panel().p_3().gap_2().child(
+        let mut content = panel().p_2().gap_2().child(
             div()
                 .text_lg()
                 .text_color(rgb(TEXT))
@@ -1904,7 +1718,7 @@ impl Desktop {
 }
 
 fn divider_v() -> Div {
-    div().w(px(1.)).h(px(32.)).bg(rgb(EDGE)).flex_shrink_0()
+    div().w(px(1.)).h(px(24.)).bg(rgb(EDGE)).flex_shrink_0()
 }
 
 /// Scrollable content column with a stable id (GPUI scroll needs state).
@@ -1918,7 +1732,7 @@ fn scroll_col(id: impl Into<SharedString>) -> Stateful<Div> {
 }
 
 impl Render for Desktop {
-    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let content: AnyElement = match self.page {
             Page::Dashboard | Page::Preview => self.dashboard(cx).into_any_element(),
             Page::Camera => self.camera_page(cx).into_any_element(),
@@ -2013,6 +1827,11 @@ impl Render for Desktop {
                         cx,
                     )
                     .into_any_element(),
+                    Self::row(
+                        "About",
+                        format!("DeepskyEyes {} · GPUI desktop", env!("CARGO_PKG_VERSION")),
+                    )
+                    .into_any_element(),
                 ];
                 self.simple_page(cx, "Settings", settings_body)
                     .into_any_element()
@@ -2022,11 +1841,12 @@ impl Render for Desktop {
             .size_full()
             .flex()
             .flex_col()
+            .gap_2()
+            .p_2()
             .bg(rgb(BG))
             .text_color(rgb(TEXT))
-            .text_sm()
+            .text_xs()
             .font_family("Segoe UI")
-            .child(self.title_bar(window, cx))
             .child(
                 div()
                     .flex()
@@ -2034,7 +1854,6 @@ impl Render for Desktop {
                     .flex_1()
                     .min_h_0()
                     .gap_2()
-                    .p_2()
                     .child(
                         div()
                             .flex()
