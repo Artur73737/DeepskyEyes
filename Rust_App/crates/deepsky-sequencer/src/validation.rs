@@ -29,7 +29,13 @@ impl SequenceValidation {
         request: &deepsky_camera::model::CaptureRequest) -> Result<(), super::errors::SequencerError> {
         use deepsky_camera::model::{FocusRequest, PixelFormat, WhiteBalanceRequest, ValidationPolicy};
         use super::errors::SequencerError::ValidationFailed;
-        if !self.ok() { return Err(ValidationFailed("preflight status not safe")); }
+        for (safe, reason) in [
+            (self.camera_connected, "camera disconnected"), (self.camera_open, "camera not open"),
+            (self.raw_supported, "RAW not supported"), (self.focus_locked, "lock focus before acquisition"),
+            (self.storage_ok, "storage unavailable"), (self.thermal_ok, "unsafe thermal status"),
+            (self.white_balance_fixed, "select a fixed white balance before acquisition"),
+            (self.transport_ok, "transport unavailable"), (self.clock_valid, "invalid acquisition clock"),
+        ] { if !safe { return Err(ValidationFailed(reason)); } }
         if plan.frames == 0 || plan.exposure_ns == 0 || plan.sensitivity == 0 { return Err(ValidationFailed("empty or zero plan")); }
         if plan.exposure_ns.checked_add(plan.delay_ns).and_then(|v| v.checked_mul(u64::from(plan.frames))).is_none() { return Err(ValidationFailed("plan duration overflow")); }
         let required = self.bytes_per_frame.checked_mul(u64::from(plan.frames)).ok_or(ValidationFailed("storage estimate overflow"))?;

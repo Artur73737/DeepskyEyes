@@ -20,6 +20,7 @@ pub enum UiAction {
     SetExposure(u64),
     SetIso(u32),
     SetFocus(f32),
+    AutofocusCenter,
     SetWhiteBalance(u32),
     /// Announced WB preset name (e.g. "daylight"); validated, never assumed.
     SetWbPreset(String),
@@ -127,6 +128,9 @@ pub struct UiSnapshot {
     /// Live exposure progress of the frame currently exposing, 0.0..=1.0.
     /// None when no frame is exposing. The UI derives seconds from this.
     pub frame_progress: Option<f32>,
+    /// Host-side elapsed request time, not a sensor timestamp.
+    pub frame_elapsed_s: Option<f32>,
+    pub frame_exposure_s: Option<f32>,
     pub frame_type: FrameType,
     pub preview: Option<PreviewImage>,
     pub histogram: Vec<u32>,
@@ -176,6 +180,8 @@ impl Default for UiSnapshot {
             frames_total: 300,
             sequence: SequenceStatus::Idle,
             frame_progress: None,
+            frame_elapsed_s: None,
+            frame_exposure_s: None,
             frame_type: FrameType::Light,
             preview: None,
             histogram: vec![],

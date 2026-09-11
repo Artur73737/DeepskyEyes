@@ -937,16 +937,14 @@ impl Desktop {
         // Luminance bars sampled from the (R+G+B concatenated) histogram.
         let mut bars = div().flex().flex_row().items_end().gap(px(1.)).h(px(28.)).w(px(88.));
         if s.histogram.len() >= 768 {
-            let max = s
-                .histogram
-                .chunks_exact(3)
-                .map(|c| c[0] + c[1] + c[2])
+            let bins: Vec<u32> = (0..256).map(|i| s.histogram[i] + s.histogram[256+i] + s.histogram[512+i]).collect();
+            let max = bins.iter().copied()
                 .max()
                 .unwrap_or(1)
                 .max(1) as f32;
-            for bin in s.histogram.chunks_exact(3).step_by(3).take(86) {
-                let v = (bin[0] + bin[1] + bin[2]) as f32 / max;
-                bars = bars.child(div().flex_1().h(px(4.0 + v * 40.0)).bg(rgb(BEIGE)));
+            for bin in bins.iter().step_by(3) {
+                let v = *bin as f32 / max;
+                bars = bars.child(div().flex_1().h(px(2.0 + v * 26.0)).bg(rgb(BEIGE)));
             }
         } else {
             bars = bars.child(
@@ -1003,7 +1001,9 @@ impl Desktop {
                             .flex()
                             .flex_row()
                             .gap_2()
-                            .child(Self::pill(if s.preview.is_some() {
+                            .child(Self::pill(if matches!(s.sequence, SequenceStatus::Running | SequenceStatus::Paused) {
+                                "RAW acquisition · previous preview".to_string()
+                            } else if s.preview.is_some() {
                                 "● Live preview".to_string()
                             } else {
                                 "○ Preview idle".to_string()
@@ -1444,8 +1444,9 @@ impl Desktop {
                             .child(
                                 div().text_sm().text_color(rgb(TEXT)).child(match s.frame_progress {
                                     Some(p) => {
-                                        let total_s = s.exposure_ns as f64 / 1e9;
-                                        format!("{:.1} / {} s", p as f64 * total_s, total_s)
+                                        let total_s = s.frame_exposure_s.unwrap_or(s.exposure_ns as f32 / 1e9);
+                                        let elapsed = s.frame_elapsed_s.unwrap_or(p * total_s);
+                                        format!("{elapsed:.2} / {total_s:.3} s{}", if elapsed > total_s { " · readout / transfer" } else { " · elapsed (host)" })
                                     }
                                     None => "—".into(),
                                 }),
@@ -1502,7 +1503,6 @@ impl Desktop {
     fn camera_control_blocks(&self, cx: &mut Context<Self>) -> Vec<AnyElement> {
         let s = &self.state;
         let edit = s.connected
-            && !s.locked
             && !matches!(s.sequence, SequenceStatus::Running | SequenceStatus::Paused);
         let mut items: Vec<AnyElement> = Vec::new();
         for camera in &s.cameras {
@@ -1562,6 +1562,8 @@ impl Desktop {
             .into_any_element(),
         );
         items.push(Self::row("Focus", format!("{:.2} D", s.focus_diopters)).into_any_element());
+        items.push(self.button("center-af", "Autofocus centro + blocco", UiAction::AutofocusCenter,
+            edit && s.focus_range.is_some(), cx).into_any_element());
         items.push(
             slider(
                 "focus-slider",
@@ -1610,7 +1612,7 @@ impl Desktop {
         items.push(
             self.button(
                 "lock",
-                if s.locked { "Unlock controls" } else { "Lock controls" },
+                if s.locked { "Unlock focus" } else { "Lock focus" },
                 UiAction::SetLocked(!s.locked),
                 s.connected,
                 cx,

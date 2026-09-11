@@ -21,7 +21,7 @@ fn kind(args: &[String]) -> Result<SessionKind, String> {
 fn options(args: &[String], frames: u32) -> Result<AcquisitionOptions, String> {
     Ok(AcquisitionOptions {
         project: crate::flag(args, "project").ok_or("--project NAME required")?,
-        out_dir: PathBuf::from(crate::flag(args, "out").unwrap_or_else(|| "sessions".into())),
+        out_dir: crate::flag(args, "out").map(PathBuf::from).unwrap_or_else(deepsky_app::controller::default_capture_dir),
         calibration: kind(args)?,
         frames,
         exposure_ns: crate::flag_or(args, "exposure-ns", 15_000_000_000)?,

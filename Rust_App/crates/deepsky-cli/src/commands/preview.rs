@@ -25,7 +25,7 @@ pub fn run(source: &Source, args: &[String]) -> Result<(), String> {
     };
     let selection = CameraSelection { camera_id: caps.camera_id.clone(), physical_id: None };
     backend.open(&selection).map_err(|e| format!("open: {e}"))?;
-    let spec = CaptureSpec {
+    let mut spec = CaptureSpec {
         exposure_ns: crate::flag_or(args, "exposure-ns", 1_000_000_000)?,
         sensitivity: crate::flag_or(args, "sensitivity", 800)?,
         focus_millidiopters: crate::flag_or(args, "focus-mdiopt", 0)?,
@@ -40,7 +40,26 @@ pub fn run(source: &Source, args: &[String]) -> Result<(), String> {
     backend
         .configure(&request, ValidationPolicy::Reject)
         .map_err(|e| format!("configure: {e}"))?;
-    let frame = backend.preview().map_err(|e| format!("preview: {e}"))?;
+    if args.iter().any(|arg| arg == "--autofocus") {
+        spec.focus_millidiopters = backend.autofocus_center().map_err(|e| format!("AF: {e}"))?;
+        println!("Center AF: {} millidiopters",spec.focus_millidiopters);
+        let request = build_request(caps, &spec).map_err(|e| e.to_string())?;
+        backend.configure(&request, ValidationPolicy::Reject).map_err(|e| e.to_string())?;
+    }
+    let count: u32 = crate::flag_or(args, "frames", 1)?;
+    if count == 0 { return Err("frames must be positive".into()); }
+    let mut last = None;
+    let mut previous_timestamp = None;
+    for index in 0..count {
+        let started = std::time::Instant::now();
+        let frame = backend.preview().map_err(|e| format!("preview: {e}"))?;
+        let sensor_delta = previous_timestamp.map(|t| frame.timestamp_ns.saturating_sub(t) as f64 / 1e9);
+        previous_timestamp = Some(frame.timestamp_ns);
+        println!("frame {}: wall={:.3}s sensor_delta={:?}s exposure_ns={:?} ISO={:?} format={:?}",
+            index+1, started.elapsed().as_secs_f64(),sensor_delta,frame.reported_exposure_ns,frame.reported_sensitivity,frame.format);
+        last = Some(frame);
+    }
+    let frame = last.unwrap();
     let rgb = preview_to_rgb8(&frame).map_err(|e| format!("decode: {e}"))?;
     let png = encode_png_rgb8(&rgb.rgb, rgb.width, rgb.height).map_err(|e| format!("png: {e}"))?;
     let out = match crate::flag(args, "out") {
@@ -49,5 +68,6 @@ pub fn run(source: &Source, args: &[String]) -> Result<(), String> {
     };
     std::fs::write(&out, &png).map_err(|e| format!("write {}: {e}", out.display()))?;
     println!("preview: {} ({}x{}, mean luma {:.1})", out.display(), rgb.width, rgb.height, rgb.mean_luma());
+    backend.close().map_err(|e| e.to_string())?;
     Ok(())
 }

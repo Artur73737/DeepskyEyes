@@ -7,6 +7,10 @@ pub trait CameraBackend {
     fn configure(&mut self, request: &CaptureRequest, policy: ValidationPolicy) -> CameraResult<ConfigurationOutcome>;
     fn capture(&mut self) -> CameraResult<CapturedFrame>;
     fn preview(&mut self) -> CameraResult<PreviewFrame>;
+    /// Center AF, returning the measured locked distance in millidiopters.
+    fn autofocus_center(&mut self) -> CameraResult<u64> {
+        Err(CameraError::new(ErrorCode::Unsupported, "Center autofocus unavailable on this backend"))
+    }
     fn thermal(&mut self) -> CameraResult<ThermalStatus>;
     fn close(&mut self) -> CameraResult<()>;
     /// Cumulative (rx, tx) transport bytes when counted; None for direct links.

@@ -36,7 +36,7 @@ object LocalCamera {
         try {
             val preview = camera.preview()
             val w=preview.getInt("width"); val h=preview.getInt("height"); val data=preview.getJSONArray("payload")
-            val colors=IntArray(w*h) { val v=data.getInt(it); 0xff000000.toInt() or (v shl 16) or (v shl 8) or v }
+            val colors=IntArray(w*h) { 0xff000000.toInt() or (data.getInt(it*3) shl 16) or (data.getInt(it*3+1) shl 8) or data.getInt(it*3+2) }
             val bitmap=Bitmap.createBitmap(colors,w,h,Bitmap.Config.ARGB_8888)
             BridgeStatus.update { it.copy(preview = bitmap) }
         } catch(e: Exception) {

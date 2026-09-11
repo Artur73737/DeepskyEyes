@@ -102,7 +102,7 @@ fn headless(args: &[String]) -> Result<(), String> {
     };
     let opts = controller::AcquisitionOptions {
         project: flag(args, "project").ok_or("--project NAME required")?,
-        out_dir: flag(args, "out").unwrap_or_else(|| "sessions".into()).into(),
+        out_dir: flag(args, "out").map(Into::into).unwrap_or_else(controller::default_capture_dir),
         frames: parse_u64(args, "frames", 1)? as u32,
         exposure_ns: parse_u64(args, "exposure-ns", 15_000_000_000)?,
         sensitivity: parse_u64(args, "sensitivity", 800)? as u32,

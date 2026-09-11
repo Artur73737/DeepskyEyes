@@ -111,7 +111,7 @@ mod tests {
     use deepsky_camera::model::Origin;
 
     fn frame(format: PixelFormat, width: u32, height: u32, payload: Vec<u8>) -> PreviewFrame {
-        PreviewFrame { payload, width, height, format, timestamp_ns: 0, origin: Origin::Synthetic }
+        PreviewFrame { payload, width, height, format, timestamp_ns: 0, origin: Origin::Synthetic, reported_exposure_ns: None, reported_sensitivity: None }
     }
 
     #[test]

@@ -38,14 +38,15 @@ const THERMAL_EVERY_FRAMES: u32 = 10;
 
 pub fn source_from_env() -> Source {
     match std::env::var("DEEPSKY_SOURCE").unwrap_or_default().as_str() {
-        "" | "sim" => Source::Simulator { realtime: false },
+        "" => Source::Adb(None),
+        "sim" => Source::Simulator { realtime: false },
         "sim:realtime" => Source::Simulator { realtime: true },
         s if s.starts_with("tcp:") => Source::Tcp(s["tcp:".len()..].to_string()),
         "adb" => Source::Adb(None),
         s if s.starts_with("adb:") => Source::Adb(Some(s["adb:".len()..].to_string())),
         other => {
-            eprintln!("warning: ignoring invalid DEEPSKY_SOURCE '{other}', using sim");
-            Source::Simulator { realtime: false }
+            eprintln!("warning: invalid DEEPSKY_SOURCE '{other}', using physical ADB camera; no synthetic fallback");
+            Source::Adb(None)
         }
     }
 }
@@ -93,6 +94,8 @@ struct Worker {
     backend: Option<Box<dyn CameraBackend + Send>>,
     preview_in_flight: Option<Receiver<PreviewThreadOut>>,
     controls_changed: Option<Instant>,
+    preview_started: Option<Instant>,
+    preview_exposure_s: f32,
     source: SourceKind,
     /// Camera id currently open on the backend, if any. Single source of
     /// truth for open-state: prevents double-open across select/run paths.
@@ -142,6 +145,8 @@ impl Worker {
             backend: None,
             preview_in_flight: None,
             controls_changed: None,
+            preview_started: None,
+            preview_exposure_s: 0.0,
             source: SourceKind::Phone,
             open_camera_id: None,
             caps: vec![],
@@ -159,7 +164,7 @@ impl Worker {
             frames_total: 300,
             frame_kind: FrameType::Light,
             project: "M42".into(),
-            destination: PathBuf::from("sessions"),
+            destination: crate::controller::default_capture_dir(),
             auto_save: true,
             run: None,
             message: String::new(),
@@ -202,6 +207,20 @@ impl Worker {
             UiAction::SetExposure(ns) => self.set_exposure(ns),
             UiAction::SetIso(iso) => self.set_iso(iso),
             UiAction::SetFocus(diopters) => self.set_focus(diopters),
+            UiAction::AutofocusCenter => {
+                if self.run.is_some() { self.fail("stop the sequence before autofocus".into()); }
+                else if let Some(backend) = self.backend.as_mut() {
+                    match backend.autofocus_center() {
+                        Ok(distance) => {
+                            self.focus_mdiopt = distance;
+                            self.focus_locked = true;
+                            self.controls_changed = Some(Instant::now() - Duration::from_millis(150));
+                            self.message = format!("Center AF locked at {:.3} D", distance as f64 / 1000.0);
+                        }
+                        Err(error) => self.fail(format!("autofocus: {error}")),
+                    }
+                } else { self.fail("connect and open a camera first".into()); }
+            }
             UiAction::SetWhiteBalance(kelvin) => self.set_white_balance(kelvin),
             UiAction::SetWbPreset(preset) => self.set_wb_preset(preset),
             UiAction::SetZoom(zoom) => self.set_zoom(zoom),
@@ -224,7 +243,14 @@ impl Worker {
                 }
             }
             UiAction::StartSequence => self.start_sequence(),
-            UiAction::CaptureOne => self.capture_one(),
+            UiAction::CaptureOne => {
+                if self.auto_save {
+                    let count = self.frames_total;
+                    self.frames_total = 1;
+                    self.start_sequence();
+                    self.frames_total = count;
+                } else { self.capture_one(); }
+            }
             UiAction::PauseSequence => self.pause_resume_stop("pause"),
             UiAction::ResumeSequence => self.pause_resume_stop("resume"),
             UiAction::StopSequence => self.pause_resume_stop("stop"),
@@ -474,16 +500,16 @@ impl Worker {
     }
 
     fn set_zoom(&mut self, zoom: f32) {
-        if zoom < 1.0 {
-            self.fail(format!("zoom {zoom}x below 1.0x"));
+        if !zoom.is_finite() || zoom <= 0.0 {
+            self.fail(format!("zoom {zoom}x must be finite and positive"));
             return;
         }
         let x1000 = (zoom * 1000.0).round() as u64;
         let supported = self.open_caps().is_some_and(|c| {
             c.zoom_x1000.is_some_and(|r| x1000 >= r.min && x1000 <= r.max)
         });
-        if zoom == 1.0 || supported {
-            self.zoom_x1000 = (zoom != 1.0).then_some(x1000);
+        if supported {
+            self.zoom_x1000 = Some(x1000);
             self.message.clear();
         } else {
             self.fail(format!("zoom {zoom}x outside announced range"));
@@ -574,6 +600,9 @@ impl Worker {
                 return;
             }
         };
+        // Freeze the selected manual distance for the run, independently of
+        // the UI edit lock. Do not change the requested focus distance.
+        self.focus_locked = true;
         let opts = self.options(self.frames_total);
         if let Err(e) = self.ensure_closed() {
             self.fail(e);
@@ -583,6 +612,7 @@ impl Worker {
         let prepared = match prepare_run(&mut **backend, &caps, &opts, now) {
             Ok(prepared) => prepared,
             Err(e) => {
+                let _ = backend.close();
                 self.fail(e.to_string());
                 return;
             }
@@ -594,6 +624,7 @@ impl Worker {
             return;
         }
         self.outcome = Some(prepared.outcome.clone());
+        self.open_camera_id = Some(caps.camera_id.clone());
         self.run = Some(ActiveRun {
             runner,
             prepared,
@@ -756,7 +787,7 @@ impl Worker {
                 self.outcome = Some(run.prepared.outcome.clone());
                 self.message = message;
                 self.frame_progress = None;
-                self.refresh_preview();
+                // The idle loop resumes live view asynchronously.
             }
             StepOutcome::Failed(message) => {
                 let _ = self.abort_run(run, &message);
@@ -864,7 +895,8 @@ impl Worker {
                                 match run.prepared.store.record_frame(record) {
                                     Ok(()) => match run.runner.frame_committed(index) {
                                         Ok(()) => {
-                                            self.refresh_preview();
+                                            // Never take a second exposure just
+                                            // for preview between scientific RAWs.
                                             StepOutcome::Continue
                                         }
                                         Err(e) => StepOutcome::Failed(fatal(run, format!("commit law violated: {e}"))),
@@ -919,6 +951,9 @@ impl Worker {
 
     fn start_preview(&mut self) {
         let Some(mut backend) = self.backend.take() else { return };
+        self.preview_started = Some(Instant::now());
+        self.preview_exposure_s = self.outcome.as_ref().and_then(|o| o.applied.settings.exposure_ns)
+            .unwrap_or(self.exposure_ns) as f32 / 1e9;
         let (tx, rx) = std::sync::mpsc::channel();
         self.preview_in_flight = Some(rx);
         std::thread::spawn(move || {
@@ -947,6 +982,7 @@ impl Worker {
         match rx.try_recv() {
             Ok((backend, result)) => {
                 self.preview_in_flight = None;
+                self.preview_started = None;
                 self.backend = Some(backend);
                 self.live_backoff = if result.is_ok() { 0 } else { self.live_backoff.saturating_add(1) };
                 self.accept_preview(result);
@@ -955,6 +991,7 @@ impl Worker {
             Err(std::sync::mpsc::TryRecvError::Empty) => false,
             Err(std::sync::mpsc::TryRecvError::Disconnected) => {
                 self.preview_in_flight = None;
+                self.preview_started = None;
                 self.open_camera_id = None;
                 self.preview = None;
                 self.fail("preview thread terminated; reconnect the camera".into());
@@ -1164,6 +1201,14 @@ impl Worker {
         snap.frames_total = total;
         snap.sequence = sequence;
         snap.frame_progress = self.frame_progress;
+        if let Some(started) = self.preview_started {
+            snap.frame_progress = Some((started.elapsed().as_secs_f32() / self.preview_exposure_s.max(0.000001)).min(1.0));
+            snap.frame_elapsed_s = Some(started.elapsed().as_secs_f32());
+            snap.frame_exposure_s = Some(self.preview_exposure_s);
+        } else if let Some(capture) = self.run.as_ref().and_then(|run| run.capture.as_ref()) {
+            snap.frame_elapsed_s = Some(capture.started.elapsed().as_secs_f32());
+            snap.frame_exposure_s = Some(capture.exposure_s);
+        }
         snap.frame_type = self.frame_kind;
         snap.preview = self.preview.clone();
         snap.histogram = self.histogram.clone();
@@ -1219,6 +1264,7 @@ pub fn run_worker(rx: Receiver<UiAction>, tx: Sender<UiSnapshot>) {
     let mut worker = Worker::new();
     let mut next_preview = Instant::now();
     let mut deferred = Vec::new();
+    let mut last_progress = Instant::now();
     let snapshot = worker.snapshot();
     if tx.send(snapshot).is_err() {
         return;
@@ -1226,7 +1272,7 @@ pub fn run_worker(rx: Receiver<UiAction>, tx: Sender<UiSnapshot>) {
     loop {
         if worker.poll_preview() {
             next_preview = Instant::now() + if worker.live_backoff == 0 {
-                Duration::from_millis(33)
+                Duration::ZERO
             } else {
                 Duration::from_millis(250 * u64::from(worker.live_backoff.min(20)))
             };
@@ -1298,6 +1344,9 @@ pub fn run_worker(rx: Receiver<UiAction>, tx: Sender<UiSnapshot>) {
             if tx.send(snapshot).is_err() {
                 break;
             }
+        } else if worker.preview_in_flight.is_some() && last_progress.elapsed() >= Duration::from_millis(50) {
+            if tx.send(worker.snapshot()).is_err() { break; }
+            last_progress = Instant::now();
         } else if worker.backend.is_some()
             && worker.open_camera_id.is_some()
             && Instant::now() >= next_preview
@@ -1381,11 +1430,11 @@ mod tests {
     #[test]
     fn source_env_parsing() {
         std::env::remove_var("DEEPSKY_SOURCE");
-        assert!(matches!(source_from_env(), Source::Simulator { realtime: false }));
+        assert!(matches!(source_from_env(), Source::Adb(None)));
         std::env::set_var("DEEPSKY_SOURCE", "tcp:127.0.0.1:9999");
         assert!(matches!(source_from_env(), Source::Tcp(_)));
         std::env::set_var("DEEPSKY_SOURCE", "bogus");
-        assert!(matches!(source_from_env(), Source::Simulator { realtime: false }));
+        assert!(matches!(source_from_env(), Source::Adb(None)));
         std::env::remove_var("DEEPSKY_SOURCE");
     }
 
@@ -1395,7 +1444,7 @@ mod tests {
         worker.set_exposure(1_000_000);
         assert_eq!(worker.message, "exposure range not announced");
         worker.set_zoom(0.5);
-        assert!(worker.message.contains("below 1.0x"));
+        assert!(worker.message.contains("outside announced range"));
     }
 
     #[test]
@@ -1450,7 +1499,9 @@ mod tests {
         worker.frames_total = 1;
         worker.set_exposure(2_000_000_000);
         assert!(worker.message.is_empty(), "2 s must be announced: {}", worker.message);
+        worker.focus_locked = false;
         worker.start_sequence();
+        assert!(worker.focus_locked, "acquisition must freeze the selected manual focus");
         assert!(worker.run.is_some(), "run must start: {}", worker.message);
         // First step spawns the exposing thread; second step polls it.
         worker.step();
@@ -1461,6 +1512,9 @@ mod tests {
             Some(p) => assert!(p > 0.0 && p < 1.0, "progress must advance mid-exposure, got {p}"),
             None => panic!("frame_progress must be Some while exposing"),
         }
+        let snapshot = worker.snapshot();
+        assert_eq!(snapshot.frame_exposure_s, Some(2.0));
+        assert!(snapshot.frame_elapsed_s.unwrap() >= 0.4);
         let _ = std::fs::remove_dir_all(&dir);
     }
 }

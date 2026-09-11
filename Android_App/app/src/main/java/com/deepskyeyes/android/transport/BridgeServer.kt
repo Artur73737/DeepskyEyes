@@ -59,23 +59,24 @@ class BridgeServer(private val engine: CameraEngine, private val thermal: () -> 
                 val params = request.optJSONObject("params") ?: JSONObject()
                 BridgeStatus.log("#${frame.requestId} $method")
                 if (method != "hello" && !hello) fault("InvalidState","HELLO required")
-                if(method == "capture") {
-                    val capture = engine.capture()
+                if(method == "capture" || method == "preview_binary") {
+                    val capture = if(method == "capture") engine.capture() else engine.previewFrame()
                     val metadata = capture.metadata.toString().toByteArray(Charsets.UTF_8)
                     val length = ByteBuffer.allocate(4).order(ByteOrder.LITTLE_ENDIAN).putInt(metadata.size).array()
-                    FrameCodec.write(output,4,frame.requestId,outgoing,length,metadata,capture.bytes)
-                    BridgeStatus.update { it.copy(captured = it.captured+1,txBytes = it.txBytes+58+4+metadata.size+capture.bytes.size) }
+                    FrameCodec.write(output,if(method == "capture") 4 else 5,frame.requestId,outgoing,length,metadata,capture.bytes)
+                    BridgeStatus.update { it.copy(captured = it.captured + if(method == "capture") 1 else 0,txBytes = it.txBytes+58+4+metadata.size+capture.bytes.size) }
                     continue
                 }
                 val result: Any? = when(method) {
                     "hello" -> {
                         requireCamera(params.optInt("protocol_version") == 1,"Unsupported","Protocol version must be 1")
-                        hello = true; obj("protocol_version" to 1,"identity" to engine.identity)
+                        hello = true; obj("protocol_version" to 1,"identity" to engine.identity,"binary_preview" to true)
                     }
                     "discover" -> engine.discovery.discover()
                     "open" -> { engine.open(params); null }
                     "configure" -> engine.configure(params.getJSONObject("request"),params.getString("policy"))
                     "preview" -> engine.preview()
+                    "autofocus_center" -> engine.autofocusCenter()
                     "thermal" -> thermal()
                     "close" -> { engine.closeCamera(); null }
                     "ping" -> obj("echo" to request.opt("params"),"server_time_ns" to System.currentTimeMillis()*1_000_000L,

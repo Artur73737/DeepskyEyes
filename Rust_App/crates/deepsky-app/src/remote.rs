@@ -15,16 +15,18 @@ pub struct RemoteCameraBackend {
     outgoing_sequence: u64,
     incoming_sequence: Option<u64>,
     identity: String,
+    binary_preview: bool,
     pub rx_bytes: u64,
     pub tx_bytes: u64,
 }
 impl RemoteCameraBackend {
     pub fn connect(mut transport: Box<dyn Transport + Send>) -> CameraResult<Self> {
         transport.connect().map_err(|e| error(e.to_string()))?;
-        let mut client=Self { transport, request:0, outgoing_sequence:0, incoming_sequence:None, identity:String::new(), rx_bytes:0, tx_bytes:0 };
+        let mut client=Self { transport, request:0, outgoing_sequence:0, incoming_sequence:None, identity:String::new(), binary_preview:false, rx_bytes:0, tx_bytes:0 };
         let hello: Value=client.call("hello", json!({"protocol_version":1}))?;
         if hello["protocol_version"] != 1 { return Err(error("incompatible protocol")); }
         client.identity=hello["identity"].as_str().ok_or_else(||error("missing device identity"))?.into();
+        client.binary_preview=hello["binary_preview"].as_bool().unwrap_or(false);
         Ok(client)
     }
     fn exchange(&mut self, method: &str, params: Value) -> CameraResult<Packet> {
@@ -69,8 +71,24 @@ impl CameraBackend for RemoteCameraBackend {
         let metadata=codec::decode(&packet.payload[4..4+n]).map_err(|e|error(e.to_string()))?;
         Ok(CapturedFrame { metadata, payload:packet.payload[4+n..].to_vec() })
     }
-    fn preview(&mut self)->CameraResult<PreviewFrame> { self.call("preview",Value::Null) }
+    fn preview(&mut self)->CameraResult<PreviewFrame> {
+        if !self.binary_preview { return self.call("preview",Value::Null); }
+        let packet=self.exchange("preview_binary",Value::Null)?;
+        if packet.header.message_type==rpc::RESPONSE {
+            let reply:Reply=codec::decode(&packet.payload).map_err(|e|error(e.to_string()))?;
+            return Err(error(reply.result().err().unwrap_or_else(||"expected binary preview".into())));
+        }
+        if packet.header.message_type!=5 || packet.payload.len()<4 { return Err(error("invalid preview packet")); }
+        let n=u32::from_le_bytes(packet.payload[..4].try_into().unwrap()) as usize;
+        if n>packet.payload.len()-4 { return Err(error("invalid preview metadata length")); }
+        let mut metadata:Value=codec::decode(&packet.payload[4..4+n]).map_err(|e|error(e.to_string()))?;
+        metadata["payload"]=json!([]);
+        let mut frame:PreviewFrame=serde_json::from_value(metadata).map_err(|e|error(e.to_string()))?;
+        frame.payload=packet.payload[4+n..].to_vec();
+        Ok(frame)
+    }
     fn thermal(&mut self)->CameraResult<ThermalStatus> { self.call("thermal",Value::Null) }
+    fn autofocus_center(&mut self)->CameraResult<u64> { self.call("autofocus_center",Value::Null) }
     fn close(&mut self)->CameraResult<()> { self.call("close",Value::Null) }
 }
 impl Drop for RemoteCameraBackend { fn drop(&mut self) { let _=self.transport.disconnect(); } }
@@ -111,6 +129,7 @@ pub fn serve_connection(transport:&mut dyn Transport, backend:&mut dyn CameraBac
                     r.and_then(|r|p.and_then(|p|value(backend.configure(&r,p))))
                 }
                 "preview"=>value(backend.preview()), "thermal"=>value(backend.thermal()), "close"=>value(backend.close()),
+                "autofocus_center"=>value(backend.autofocus_center()),
                 "ping"=>Ok(json!({"echo":request.params,"server_time_ns":std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_nanos().min(u64::MAX as u128) as u64})),
                 _=>Err(CameraError::new(ErrorCode::Unsupported,"unknown method")),
             }

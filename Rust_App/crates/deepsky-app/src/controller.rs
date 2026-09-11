@@ -37,6 +37,10 @@ use deepsky_session::{calibration::SessionKind, naming::frame_filename, store::S
 use crate::source::Source;
 
 pub const APP_VERSION: &str = "0.1.0";
+pub fn default_capture_dir() -> PathBuf {
+    std::env::current_exe().ok().and_then(|p| p.parent().map(|p| p.join("captures")))
+        .unwrap_or_else(|| PathBuf::from("captures"))
+}
 /// Adaptive Thermal research points (doc/10): warn at 49 C, refuse at 52 C.
 pub const THERMAL_WARN_C: f32 = 49.0;
 pub const THERMAL_CRITICAL_C: f32 = 52.0;
@@ -288,7 +292,7 @@ impl AcquisitionOptions {
 impl Default for AcquisitionOptions {
     fn default() -> Self {        Self {
             project: "TEST".into(),
-            out_dir: PathBuf::from("sessions"),
+            out_dir: default_capture_dir(),
             calibration: SessionKind::Test,
             frames: 1,
             exposure_ns: 1_000_000,
@@ -393,7 +397,9 @@ pub fn prepare_run(
     // The session directory itself must not pre-exist (no implicit reuse),
     // but missing parents of the chosen output root are created explicitly.
     std::fs::create_dir_all(&opts.out_dir)?;
-    let session_dir = opts.out_dir.join(format!("{}_{}", opts.project, stamp));
+    let safe_project: String = opts.project.chars().map(|c|
+        if c.is_ascii_alphanumeric() || c == '-' || c == '_' { c } else { '_' }).collect();
+    let session_dir = opts.out_dir.join(format!("{}_{}_{:09}", safe_project, stamp, now_ns % 1_000_000_000));
     let (dir_name, kind_char) = subdir(opts.calibration);
     let manifest = SessionManifest {
         schema_version: MANIFEST_VERSION,

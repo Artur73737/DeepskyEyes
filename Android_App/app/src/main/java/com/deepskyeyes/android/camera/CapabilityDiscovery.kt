@@ -39,7 +39,7 @@ class CapabilityDiscovery(private val manager: CameraManager) {
         val previewMap = c[C.SCALER_STREAM_CONFIGURATION_MAP]
         val previews = previewMap?.getOutputSizes(ImageFormat.YUV_420_888).orEmpty()
             .filter { it.width <= 1280 && it.height <= 720 }.sortedBy { it.width.toLong() * it.height }
-            .map { stream(it.width,it.height,"Gray8","Default",previewMap!!.getOutputMinFrameDuration(ImageFormat.YUV_420_888,it),0) }
+            .map { stream(it.width,it.height,"Rgb8","Default",previewMap!!.getOutputMinFrameDuration(ImageFormat.YUV_420_888,it),0) }
         val active = c[C.SENSOR_INFO_ACTIVE_ARRAY_SIZE]
         val zoom = c[C.CONTROL_ZOOM_RATIO_RANGE]
         val exposure = c[C.SENSOR_INFO_EXPOSURE_TIME_RANGE]

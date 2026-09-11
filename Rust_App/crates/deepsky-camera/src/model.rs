@@ -169,4 +169,9 @@ pub struct CaptureMetadata {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CapturedFrame { pub payload: Vec<u8>, pub metadata: CaptureMetadata }
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct PreviewFrame { pub payload: Vec<u8>, pub width: u32, pub height: u32, pub format: PixelFormat, pub timestamp_ns: u64, pub origin: Origin }
+pub struct PreviewFrame {
+    pub payload: Vec<u8>, pub width: u32, pub height: u32, pub format: PixelFormat,
+    pub timestamp_ns: u64, pub origin: Origin,
+    #[serde(default)] pub reported_exposure_ns: Option<u64>,
+    #[serde(default)] pub reported_sensitivity: Option<u64>,
+}

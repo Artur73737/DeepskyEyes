@@ -31,9 +31,15 @@ class CameraEngine(context: Context, private val status: (String) -> Unit) : Aut
     @Volatile private var device: CameraDevice? = null
     @Volatile private var session: CameraCaptureSession? = null
     private var reader: ImageReader? = null
+    private var rawPreviewReader: ImageReader? = null
     private var sessionStream: JSONObject? = null
     private var selected: JSONObject? = null
     private var outcome: JSONObject? = null
+    @Volatile private var liveSettings: String? = null
+    private val liveLock = Any()
+    private val liveImages = linkedMapOf<Long, Image>()
+    private val liveResults = linkedMapOf<Long, TotalCaptureResult>()
+    private val liveFrames = java.util.concurrent.ArrayBlockingQueue<Pair<Image, TotalCaptureResult>>(1)
     private val frameCounter = AtomicLong()
     @Volatile private var pendingResult: CompletableFuture<TotalCaptureResult>? = null
     @Volatile private var pendingImage: CompletableFuture<Image>? = null
@@ -72,8 +78,8 @@ class CameraEngine(context: Context, private val status: (String) -> Unit) : Aut
         val size = stream.getLong("width") * stream.getLong("height") * 2
         requireCamera(size <= minOf(128L * 1024 * 1024, Runtime.getRuntime().maxMemory() / 3), "OutOfRange", "Stream exceeds safe RAW memory budget")
         try {
-            ensureSession(stream)
-            buildRequest(settings, false).build()
+            // Configuration validates intent. Capture/preview choose their own
+            // surface; do not rebuild a RAW session on every slider edit.
             outcome = accepted
         } catch(e: Exception) { outcome = null; closeSession(); throw e }
         status("READY · ${stream.getInt("width")} × ${stream.getInt("height")}")
@@ -81,33 +87,57 @@ class CameraEngine(context: Context, private val status: (String) -> Unit) : Aut
     }
 
     private fun closeSession() {
+        liveSettings = null
         session?.close(); session = null
+        synchronized(liveLock) {
+            liveImages.values.forEach { it.close() }; liveImages.clear(); liveResults.clear()
+            liveFrames.poll()?.first?.close()
+        }
         reader?.close(); reader = null
+        rawPreviewReader?.close(); rawPreviewReader = null
         sessionStream = null
     }
-    private fun ensureSession(stream: JSONObject) {
-        if (session != null && sessionStream?.sameJson(stream) == true) return
+    private fun ensureSession(stream: JSONObject, rawPreview: Boolean = false) {
+        if (session != null && sessionStream?.sameJson(stream) == true && (rawPreviewReader != null) == rawPreview) return
         closeSession()
         val camera = device ?: fault("Disconnected","Camera is closed")
         val format = when(stream.getString("format")) {
             "Raw16Le", "Dng" -> ImageFormat.RAW_SENSOR
             "Jpeg" -> ImageFormat.JPEG
-            "Gray8" -> ImageFormat.YUV_420_888
+            "Gray8", "Rgb8" -> ImageFormat.YUV_420_888
             else -> fault("Unsupported","Output format")
         }
-        val newReader = ImageReader.newInstance(stream.getInt("width"),stream.getInt("height"),format,2)
+        val newReader = ImageReader.newInstance(stream.getInt("width"),stream.getInt("height"),format,4)
         reader = newReader
         newReader.setOnImageAvailableListener({ r ->
             try {
                 val image = r.acquireNextImage() ?: return@setOnImageAvailableListener
+                if (r !== reader) { image.close(); return@setOnImageAvailableListener }
+                if (liveSettings != null) {
+                    synchronized(liveLock) { liveImages.put(image.timestamp,image)?.close(); pairLiveFrames() }
+                    return@setOnImageAvailableListener
+                }
                 val target = pendingImage
                 if (target == null || !target.complete(image)) image.close()
             } catch(e: Exception) { pendingImage?.completeExceptionally(e) }
         },handler)
         val output = OutputConfiguration(newReader.surface)
         if (stream.getString("pixel_mode") == "MaximumResolution") output.addSensorPixelModeUsed(CameraMetadata.SENSOR_PIXEL_MODE_MAXIMUM_RESOLUTION)
+        val outputs = mutableListOf(output)
+        if (rawPreview) {
+            // Pixel's processed-only stream may report a long exposure while
+            // delivering a short frame. Include RAW in the same sensor request
+            // so the YUV companion is produced by the still-capture pipeline.
+            val raw = discovery.describe(camera.id).getJSONArray("streams").objects().firstOrNull {
+                it.getString("format") in listOf("Dng","Raw16Le") && it.getString("pixel_mode") == "Default"
+            } ?: fault("Unsupported","Long color preview requires an announced RAW companion stream")
+            val rawReader = ImageReader.newInstance(raw.getInt("width"),raw.getInt("height"),ImageFormat.RAW_SENSOR,2)
+            rawPreviewReader = rawReader
+            rawReader.setOnImageAvailableListener({ r -> runCatching { r.acquireLatestImage()?.close() } },handler)
+            outputs.add(OutputConfiguration(rawReader.surface))
+        }
         val ready = CompletableFuture<CameraCaptureSession>()
-        val config = SessionConfiguration(SessionConfiguration.SESSION_REGULAR,listOf(output), { runnable -> handler.post(runnable); Unit },
+        val config = SessionConfiguration(SessionConfiguration.SESSION_REGULAR,outputs, { runnable -> handler.post(runnable); Unit },
             object : CameraCaptureSession.StateCallback() {
                 override fun onConfigured(s: CameraCaptureSession) { if (!ready.complete(s)) s.close() }
                 override fun onConfigureFailed(s: CameraCaptureSession) { s.close(); ready.completeExceptionally(CameraFault("Unsupported","Stream session rejected by Camera2")) }
@@ -121,18 +151,21 @@ class CameraEngine(context: Context, private val status: (String) -> Unit) : Aut
 
     private fun buildRequest(settings: JSONObject, preview: Boolean): CaptureRequest.Builder {
         val camera = device ?: fault("Disconnected","Camera is closed")
-        val b = camera.createCaptureRequest(if(preview) CameraDevice.TEMPLATE_PREVIEW else CameraDevice.TEMPLATE_STILL_CAPTURE)
+        val b = camera.createCaptureRequest(CameraDevice.TEMPLATE_MANUAL)
+        b.set(CaptureRequest.CONTROL_CAPTURE_INTENT, if(preview && settings.getLong("exposure_ns") < 100_000_000L)
+            CameraMetadata.CONTROL_CAPTURE_INTENT_PREVIEW else CameraMetadata.CONTROL_CAPTURE_INTENT_STILL_CAPTURE)
         b.addTarget(reader!!.surface)
+        rawPreviewReader?.let { b.addTarget(it.surface) }
         b.set(CaptureRequest.CONTROL_MODE, CameraMetadata.CONTROL_MODE_AUTO)
         val stream = sessionStream!!
         b.set(CaptureRequest.SENSOR_PIXEL_MODE, if(stream.getString("pixel_mode") == "MaximumResolution") CameraMetadata.SENSOR_PIXEL_MODE_MAXIMUM_RESOLUTION else CameraMetadata.SENSOR_PIXEL_MODE_DEFAULT)
-        if (preview) {
-            b.set(CaptureRequest.CONTROL_AE_MODE, CameraMetadata.CONTROL_AE_MODE_ON)
-        } else {
+        run {
             b.set(CaptureRequest.CONTROL_AE_MODE, CameraMetadata.CONTROL_AE_MODE_OFF)
             b.set(CaptureRequest.SENSOR_EXPOSURE_TIME,settings.getLong("exposure_ns"))
             b.set(CaptureRequest.SENSOR_SENSITIVITY,settings.getInt("sensitivity"))
-            settings.longOrNull("frame_duration_ns")?.let { b.set(CaptureRequest.SENSOR_FRAME_DURATION,it) }
+            b.set(CaptureRequest.SENSOR_FRAME_DURATION,maxOf(settings.getLong("exposure_ns"),
+                settings.longOrNull("frame_duration_ns") ?: 0L,
+                stream.longOrNull("min_frame_duration_ns") ?: 0L))
         }
         settings.optJSONObject("focus")?.getJSONObject("Manual")?.let {
             b.set(CaptureRequest.CONTROL_AF_MODE,CameraMetadata.CONTROL_AF_MODE_OFF)
@@ -167,15 +200,16 @@ class CameraEngine(context: Context, private val status: (String) -> Unit) : Aut
         return b
     }
 
-    private fun take(settings: JSONObject, preview: Boolean): Pair<Image,TotalCaptureResult> {
+    private fun take(settings: JSONObject, preview: Boolean, allowWarmupRetry: Boolean = true): Pair<Image,TotalCaptureResult> {
         requireCamera(!stopped, "Disconnected", "Camera stopped")
         if(power.currentThermalStatus >= PowerManager.THERMAL_STATUS_SEVERE) fault("Thermal","Android thermal severity refuses capture")
         val imageFuture = CompletableFuture<Image>(); val resultFuture = CompletableFuture<TotalCaptureResult>()
         pendingImage = imageFuture; pendingResult = resultFuture
-        val timeout = if(preview) 10_000L else ((settings.longOrNull("frame_duration_ns") ?: settings.getLong("exposure_ns")) / 1_000_000 + 15_000).coerceAtMost(115_000)
+        val timeout = ((settings.longOrNull("frame_duration_ns") ?: settings.getLong("exposure_ns")) / 1_000_000 + 15_000).coerceAtMost(115_000)
         var image: Image? = null
         try {
             val request = buildRequest(settings,preview).build()
+            val submitted = SystemClock.elapsedRealtimeNanos()
             session!!.capture(request, object : CameraCaptureSession.CaptureCallback() {
                 override fun onCaptureCompleted(s: CameraCaptureSession,request: CaptureRequest,result: TotalCaptureResult) { resultFuture.complete(result) }
                 override fun onCaptureFailed(s: CameraCaptureSession,request: CaptureRequest,failure: CaptureFailure) { resultFuture.completeExceptionally(CameraFault("Io","Capture failure ${failure.reason}")) }
@@ -186,6 +220,16 @@ class CameraEngine(context: Context, private val status: (String) -> Unit) : Aut
             image = await(imageFuture,(deadline-SystemClock.elapsedRealtime()).coerceAtLeast(1))
             val timestamp = result[CaptureResult.SENSOR_TIMESTAMP] ?: fault("Io","Sensor timestamp missing")
             requireCamera(image.timestamp == timestamp, "Io", "Image and CaptureResult timestamps differ")
+            val reportedExposure = result[CaptureResult.SENSOR_EXPOSURE_TIME] ?: fault("Io","Sensor exposure missing")
+            // Some Pixel HALs return a startup frame with the new long-exposure
+            // metadata before that exposure could physically finish. Never save
+            // or display this frame as a valid scientific exposure.
+            if (reportedExposure >= 100_000_000L && SystemClock.elapsedRealtimeNanos()-submitted < reportedExposure*95/100) {
+                image.close(); image = null
+                requireCamera(allowWarmupRetry,"Io","Camera returned a frame before its reported exposure could finish")
+                status("Discarding unverified startup frame; acquiring real exposure")
+                return take(settings,preview,false)
+            }
             return image to result
         } catch(e: Exception) {
             image?.close()
@@ -230,20 +274,108 @@ class CameraEngine(context: Context, private val status: (String) -> Unit) : Aut
         }
     }
 
-    @Synchronized fun preview(): JSONObject {
+    private fun pairLiveFrames() {
+        for (timestamp in liveImages.keys.toList()) {
+            val result = liveResults.remove(timestamp) ?: continue
+            val image = liveImages.remove(timestamp)!!
+            liveFrames.poll()?.first?.close()
+            liveFrames.offer(image to result)
+        }
+        while(liveImages.size > 1) liveImages.remove(liveImages.keys.first())?.close()
+        while(liveResults.size > 4) liveResults.remove(liveResults.keys.first())
+    }
+
+    @Synchronized fun previewFrame(): Capture {
         val configured = outcome ?: fault("InvalidState","Configure before preview")
         val settings = configured.getJSONObject("applied").getJSONObject("settings")
         val previews = discovery.describe(selected!!.getString("camera_id")).getJSONArray("preview_streams").objects()
-        val stream = previews.filter { it.getInt("width") <= 640 }.lastOrNull() ?: previews.firstOrNull() ?: fault("Unsupported","No bounded YUV preview stream")
-        ensureSession(stream)
-        val (image,result) = take(settings,true)
-        image.use {
-            val plane = image.planes[0]; val buffer = plane.buffer
-            val bytes = ByteArray(image.width*image.height)
-            for(y in 0 until image.height) for(x in 0 until image.width) bytes[y*image.width+x] = buffer.get(y*plane.rowStride+x*plane.pixelStride)
-            return obj("payload" to arr(bytes.map { it.toInt() and 255 }),"width" to image.width,"height" to image.height,
-                "format" to "Gray8","timestamp_ns" to result[CaptureResult.SENSOR_TIMESTAMP],"origin" to "Device")
+        val stream = previews.filter { it.getInt("width") <= 640 }.maxByOrNull { it.getInt("width") * it.getInt("height") } ?: previews.firstOrNull() ?: fault("Unsupported","No bounded YUV preview stream")
+        val longExposure = settings.getLong("exposure_ns") >= 100_000_000L
+        ensureSession(stream,longExposure)
+        val key = settings.toString()
+        if (!longExposure && liveSettings != key) {
+            // Recreate only when controls change, flushing frames from the old
+            // request so a 16-second frame cannot masquerade as a new short one.
+            if (liveSettings != null) { closeSession(); ensureSession(stream) }
+            liveSettings = key
+            session!!.setRepeatingRequest(buildRequest(settings,true).build(), object : CameraCaptureSession.CaptureCallback() {
+                override fun onCaptureCompleted(s: CameraCaptureSession,request: CaptureRequest,result: TotalCaptureResult) {
+                    if (s !== session) return
+                    synchronized(liveLock) { result[CaptureResult.SENSOR_TIMESTAMP]?.let { liveResults[it] = result }; pairLiveFrames() }
+                }
+            },handler)
         }
+        val timeout = (settings.getLong("exposure_ns") / 1_000_000 * 2 + 15_000).coerceAtMost(115_000)
+        val (image,result) = if (longExposure) {
+            if (liveSettings != null) { closeSession(); ensureSession(stream,true) }
+            take(settings,false)
+        } else liveFrames.poll(timeout,TimeUnit.MILLISECONDS) ?: fault("Timeout","Live preview callback timeout")
+        image.use {
+            val planes = image.planes
+            // Cache plane accessors once: querying Image.Plane.buffer inside
+            // the pixel loop incurs hundreds of thousands of native calls.
+            val buffers = planes.map { it.buffer }
+            val rows = planes.map { it.rowStride }
+            val strides = planes.map { it.pixelStride }
+            val width = image.width; val height = image.height
+            val bytes = ByteArray(width*height*3)
+            fun sample(p: Int, xx: Int, yy: Int) = buffers[p].get(yy*rows[p]+xx*strides[p]).toInt() and 255
+            for(y in 0 until height) for(x in 0 until width) {
+                val l = (sample(0,x,y)-16).coerceAtLeast(0); val u=sample(1,x/2,y/2)-128; val v=sample(2,x/2,y/2)-128
+                val i=(y*width+x)*3
+                bytes[i]=((298*l+409*v+128) shr 8).coerceIn(0,255).toByte()
+                bytes[i+1]=((298*l-100*u-208*v+128) shr 8).coerceIn(0,255).toByte()
+                bytes[i+2]=((298*l+516*u+128) shr 8).coerceIn(0,255).toByte()
+            }
+            return Capture(obj("width" to image.width,"height" to image.height,
+                "format" to "Rgb8","timestamp_ns" to result[CaptureResult.SENSOR_TIMESTAMP],"origin" to "Device",
+                "reported_exposure_ns" to result[CaptureResult.SENSOR_EXPOSURE_TIME],
+                "reported_sensitivity" to result[CaptureResult.SENSOR_SENSITIVITY]),bytes)
+        }
+    }
+
+    @Synchronized fun preview(): JSONObject = previewFrame().let {
+        it.metadata.put("payload",arr(it.bytes.map { b -> b.toInt() and 255 }))
+    }
+
+    /** One-shot center AF; return only a measured, successfully locked distance. */
+    @Synchronized fun autofocusCenter(): Long {
+        val settings = outcome?.getJSONObject("applied")?.getJSONObject("settings")
+            ?: fault("InvalidState","Configure before autofocus")
+        val c = discovery.characteristics(selected!!.getString("camera_id"))
+        requireCamera(c[CameraCharacteristics.CONTROL_AF_AVAILABLE_MODES]?.contains(CameraMetadata.CONTROL_AF_MODE_AUTO) == true,
+            "Unsupported","One-shot autofocus is not supported")
+        requireCamera((c[CameraCharacteristics.CONTROL_MAX_REGIONS_AF] ?: 0) > 0,"Unsupported","Central AF region is not supported")
+        val sensor = c[CameraCharacteristics.SENSOR_INFO_ACTIVE_ARRAY_SIZE] ?: fault("Unsupported","AF coordinate bounds unavailable")
+        val previews = discovery.describe(selected!!.getString("camera_id")).getJSONArray("preview_streams").objects()
+        val stream = previews.filter { it.getInt("width") <= 640 }.maxByOrNull { it.getInt("width")*it.getInt("height") }
+            ?: fault("Unsupported","AF preview surface unavailable")
+        closeSession(); ensureSession(stream)
+        val result = CompletableFuture<Long>()
+        val b = buildRequest(settings,true)
+        b.set(CaptureRequest.CONTROL_AE_MODE,CameraMetadata.CONTROL_AE_MODE_ON)
+        b.set(CaptureRequest.CONTROL_AF_MODE,CameraMetadata.CONTROL_AF_MODE_AUTO)
+        val half = (minOf(sensor.width(),sensor.height()) / 10).coerceAtLeast(1)
+        b.set(CaptureRequest.CONTROL_AF_REGIONS,arrayOf(MeteringRectangle(Rect(sensor.centerX()-half,sensor.centerY()-half,
+            sensor.centerX()+half,sensor.centerY()+half),MeteringRectangle.METERING_WEIGHT_MAX)))
+        val callback = object : CameraCaptureSession.CaptureCallback() {
+            override fun onCaptureCompleted(s: CameraCaptureSession,request: CaptureRequest,r: TotalCaptureResult) {
+                when(r[CaptureResult.CONTROL_AF_STATE]) {
+                    CameraMetadata.CONTROL_AF_STATE_FOCUSED_LOCKED -> r[CaptureResult.LENS_FOCUS_DISTANCE]?.let { result.complete((it*1000).toLong()) }
+                    CameraMetadata.CONTROL_AF_STATE_NOT_FOCUSED_LOCKED -> result.completeExceptionally(CameraFault("InvalidState","Center AF could not find focus; increase illumination or focus manually"))
+                }
+            }
+            override fun onCaptureFailed(s: CameraCaptureSession,request: CaptureRequest,failure: CaptureFailure) {
+                result.completeExceptionally(CameraFault("Io","Autofocus capture failed"))
+            }
+        }
+        try {
+            b.set(CaptureRequest.CONTROL_AF_TRIGGER,CameraMetadata.CONTROL_AF_TRIGGER_IDLE)
+            session!!.setRepeatingRequest(b.build(),callback,handler)
+            b.set(CaptureRequest.CONTROL_AF_TRIGGER,CameraMetadata.CONTROL_AF_TRIGGER_START)
+            session!!.capture(b.build(),callback,handler)
+            return await(result,10_000)
+        } finally { closeSession() }
     }
 
     private fun reported(r: TotalCaptureResult, stream: JSONObject): JSONObject {
