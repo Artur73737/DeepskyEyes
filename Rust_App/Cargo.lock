@@ -1402,6 +1402,7 @@ dependencies = [
  "deepsky-sequencer",
  "deepsky-session",
  "gpui",
+ "windows 0.61.3",
 ]
 
 [[package]]

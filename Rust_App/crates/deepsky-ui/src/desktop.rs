@@ -30,7 +30,7 @@ pub fn run(initial: UiSnapshot, snapshots: Receiver<UiSnapshot>, actions: Sender
                 window_bounds: Some(WindowBounds::Windowed(bounds)),
                 window_min_size: Some(size(px(1050.), px(700.))),
                 titlebar: Some(TitlebarOptions {
-                    title: Some("DeepskyEyes · Mission control".into()),
+                    title: Some(crate::chrome::WINDOW_TITLE.into()),
                     ..Default::default()
                 }),
                 ..Default::default()
@@ -40,6 +40,9 @@ pub fn run(initial: UiSnapshot, snapshots: Receiver<UiSnapshot>, actions: Sender
             eprintln!("Cannot open DeepskyEyes window: {error}");
             cx.quit();
         }
+        // Frameless app window: our own title bar takes over (native caption
+        // stripped on a helper thread; thick frame keeps OS resize working).
+        crate::chrome::strip_caption_when_ready();
         cx.activate(true);
     });
 }
@@ -128,10 +131,50 @@ impl Page {
     }
 }
 
+/// Custom title-bar menus. Every item performs a real action.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum MenuId {
+    File,
+    View,
+    Tools,
+    Settings,
+    Help,
+}
+impl MenuId {
+    fn label(self) -> &'static str {
+        match self {
+            Self::File => "File",
+            Self::View => "View",
+            Self::Tools => "Tools",
+            Self::Settings => "Settings",
+            Self::Help => "Help",
+        }
+    }
+}
+
+/// Commands behind title-bar menu items. Nothing here is decorative.
+#[derive(Clone)]
+enum MenuCommand {
+    Send(UiAction),
+    Page(Page),
+    About,
+    Quit,
+}
+
+/// Window controls on the custom title bar.
+#[derive(Clone, Copy)]
+enum ChromeAction {
+    Minimize,
+    Maximize,
+    Close,
+}
+
 struct Desktop {
     state: UiSnapshot,
     actions: Sender<UiAction>,
     page: Page,
+    menu: Option<MenuId>,
+    notice: String,
     image: Option<Arc<Image>>,
     image_revision: Option<u64>,
     preview_cover: bool,
@@ -185,6 +228,8 @@ impl Desktop {
             state,
             actions,
             page: Page::Dashboard,
+            menu: None,
+            notice: String::new(),
             image: None,
             image_revision: None,
             preview_cover: true,
@@ -250,6 +295,7 @@ impl Desktop {
             self.error = "Application worker unavailable".into();
         } else {
             self.error.clear();
+            self.notice.clear();
         }
         cx.notify();
     }
@@ -351,7 +397,7 @@ impl Desktop {
             .flex_row()
             .items_center()
             .justify_between()
-            .gap_3()
+            .gap_2()
             .child(div().text_color(rgb(MUTED)).child(label.into()))
             .child(div().text_color(rgb(TEXT)).child(value.into()))
     }
@@ -372,8 +418,8 @@ impl Desktop {
             .flex()
             .flex_row()
             .items_center()
-            .gap_3()
-            .p_4()
+            .gap_2()
+            .p_3()
             .bg(rgb(PANEL))
             .border_1()
             .border_color(rgb(EDGE))
@@ -432,8 +478,8 @@ impl Desktop {
             .flex()
             .flex_row()
             .items_center()
-            .gap_3()
-            .p_4()
+            .gap_2()
+            .p_3()
             .bg(rgb(PANEL))
             .border_1()
             .border_color(rgb(EDGE))
@@ -475,7 +521,7 @@ impl Desktop {
                     .flex()
                     .flex_row()
                     .items_center()
-                    .gap_3()
+                    .gap_2()
                     .px_3()
                     .py_2()
                     .rounded(rad())
@@ -509,7 +555,7 @@ impl Desktop {
             .map(|session| format!("Session {}", session.id))
             .unwrap_or_else(|| s.destination.clone());
         panel()
-            .p_4()
+            .p_3()
             .gap_2()
             .child(
                 div()
@@ -612,7 +658,7 @@ impl Desktop {
             .flex()
             .flex_col()
             .gap_2()
-            .p_4()
+            .p_3()
             .bg(rgb(PANEL))
             .border_1()
             .border_color(rgb(EDGE))
@@ -648,11 +694,11 @@ impl Desktop {
     fn sidebar(&self, cx: &mut Context<Self>) -> Stateful<Div> {
         div()
             .id("sidebar")
-            .w(px(250.))
+            .w(px(232.))
             .flex_shrink_0()
             .flex()
             .flex_col()
-            .gap_3()
+            .gap_2()
             .min_h_0()
             .overflow_y_scroll()
             .child(self.device_card(cx))
@@ -713,7 +759,7 @@ impl Desktop {
                 .into_any_element()
         };
         // Luminance bars sampled from the (R+G+B concatenated) histogram.
-        let mut bars = div().flex().flex_row().items_end().gap(px(1.)).h(px(44.)).w(px(120.));
+        let mut bars = div().flex().flex_row().items_end().gap(px(1.)).h(px(36.)).w(px(104.));
         if s.histogram.len() >= 768 {
             let max = s
                 .histogram
@@ -734,6 +780,13 @@ impl Desktop {
                     .child("no histogram"),
             );
         }
+        let alert = if !self.error.is_empty() {
+            Some((self.error.clone(), DANGER))
+        } else if !s.message.is_empty() {
+            Some((s.message.clone(), MUTED))
+        } else {
+            None
+        };
         let caption_title = s
             .sessions
             .first()
@@ -786,6 +839,30 @@ impl Desktop {
                                 s.resolution.1
                             ))),
                     )
+                    .child(match alert {
+                        Some((text, color)) => div()
+                            .absolute()
+                            .top(px(12.))
+                            .left(px(0.))
+                            .right(px(0.))
+                            .flex()
+                            .flex_row()
+                            .justify_center()
+                            .child(
+                                div()
+                                    .px_3()
+                                    .py_1()
+                                    .rounded(px(999.))
+                                    .bg(rgb(OVERLAY))
+                                    .border_1()
+                                    .border_color(rgb(EDGE))
+                                    .text_sm()
+                                    .text_color(rgb(color))
+                                    .child(text),
+                            )
+                            .into_any_element(),
+                        None => div().into_any_element(),
+                    })
                     .child(
                         div()
                             .absolute()
@@ -806,7 +883,7 @@ impl Desktop {
                                     .flex_row()
                                     .items_center()
                                     .justify_between()
-                                    .gap_3()
+                                    .gap_2()
                                     .text_xs()
                                     .text_color(rgb(TEXT))
                                     .child(format!("ISO {}", s.iso))
@@ -958,8 +1035,8 @@ impl Desktop {
             .copied()
             .unwrap_or(s.exposure_ns);
         panel()
-            .p_4()
-            .gap_3()
+            .p_3()
+            .gap_2()
             .child(
                 div()
                     .flex()
@@ -1197,44 +1274,290 @@ impl Desktop {
             )
     }
 
-    fn menu_bar(&self) -> Div {
+    /// Custom title bar: draggable brand + menus on the left, working
+    /// minimize / maximize / close on the right. The native caption is
+    /// stripped at startup (see chrome.rs); the thick frame keeps OS resize.
+    fn title_bar(&self, window: &mut Window, cx: &mut Context<Self>) -> Div {
         div()
             .flex()
-            .flex_row()
-            .items_center()
-            .gap_4()
+            .flex_col()
             .flex_shrink_0()
-            .h(px(40.))
             .child(
                 div()
-                    .size(px(28.))
-                    .rounded(px(8.))
-                    .bg(rgb(PANEL_ACTIVE))
-                    .border_1()
-                    .border_color(rgb(EDGE))
                     .flex()
+                    .flex_row()
                     .items_center()
-                    .justify_center()
-                    .text_color(rgb(TEXT))
-                    .child("✦"),
+                    .gap_1()
+                    .h(px(40.))
+                    .child(
+                        div()
+                            .flex()
+                            .flex_row()
+                            .items_center()
+                            .gap_2()
+                            .px_2()
+                            .h_full()
+                            .on_mouse_down(MouseButton::Left, |event, _, _| {
+                                if event.click_count >= 2 {
+                                    crate::chrome::toggle_maximize();
+                                } else {
+                                    crate::chrome::begin_drag();
+                                }
+                            })
+                            .child(
+                                div()
+                                    .size(px(24.))
+                                    .rounded(px(7.))
+                                    .bg(rgb(PANEL_ACTIVE))
+                                    .border_1()
+                                    .border_color(rgb(EDGE))
+                                    .flex()
+                                    .items_center()
+                                    .justify_center()
+                                    .text_color(rgb(TEXT))
+                                    .child("✦"),
+                            )
+                            .child(div().text_color(rgb(TEXT)).child("DeepskyEyes")),
+                    )
+                    .child(self.menu_entry(MenuId::File, cx))
+                    .child(self.menu_entry(MenuId::View, cx))
+                    .child(self.menu_entry(MenuId::Tools, cx))
+                    .child(self.menu_entry(MenuId::Settings, cx))
+                    .child(self.menu_entry(MenuId::Help, cx))
+                    .child(
+                        div()
+                            .flex_1()
+                            .h_full()
+                            .on_mouse_down(MouseButton::Left, |event, _, _| {
+                                if event.click_count >= 2 {
+                                    crate::chrome::toggle_maximize();
+                                } else {
+                                    crate::chrome::begin_drag();
+                                }
+                            }),
+                    )
+                    .child(
+                        div()
+                            .text_sm()
+                            .text_color(rgb(if !self.error.is_empty() {
+                                DANGER
+                            } else if !self.notice.is_empty() {
+                                TEXT
+                            } else {
+                                MUTED
+                            }))
+                            .child(if !self.error.is_empty() {
+                                self.error.clone()
+                            } else if !self.notice.is_empty() {
+                                self.notice.clone()
+                            } else {
+                                String::new()
+                            }),
+                    )
+                    .child(self.chrome_button("win-min", "—", false, ChromeAction::Minimize, window, cx))
+                    .child(self.chrome_button(
+                        "win-max",
+                        if window.is_maximized() { "❐" } else { "▢" },
+                        false,
+                        ChromeAction::Maximize,
+                        window,
+                        cx,
+                    ))
+                    .child(self.chrome_button("win-close", "✕", true, ChromeAction::Close, window, cx)),
             )
-            .child(div().text_lg().text_color(rgb(TEXT)).child("DeepskyEyes"))
-            .child(div().w(px(16.)))
-            .child(menu_label("File"))
-            .child(menu_label("View"))
-            .child(menu_label("Tools"))
-            .child(menu_label("Help"))
-            .child(div().flex_1())
-            .child(
-                div()
-                    .text_sm()
-                    .text_color(rgb(if self.error.is_empty() { MUTED } else { DANGER }))
-                    .child(if self.error.is_empty() {
-                        self.state.message.clone()
+            .child(divider())
+    }
+
+    fn chrome_button(
+        &self,
+        id: impl Into<SharedString>,
+        glyph: impl Into<String>,
+        danger: bool,
+        action: ChromeAction,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> Stateful<Div> {
+        let label = glyph.into();
+        div()
+            .id(id.into())
+            .w(px(46.))
+            .h(px(40.))
+            .flex()
+            .items_center()
+            .justify_center()
+            .cursor_pointer()
+            .text_color(rgb(TEXT))
+            .hover(|d| {
+                if danger {
+                    d.bg(rgb(0xc42b1c)).text_color(rgb(0xffffff))
+                } else {
+                    d.bg(rgb(PANEL_ACTIVE))
+                }
+            })
+            .child(label)
+            .on_click(cx.listener(move |view, _, window, cx| match action {
+                ChromeAction::Minimize => window.minimize_window(),
+                ChromeAction::Maximize => {
+                    crate::chrome::toggle_maximize();
+                }
+                ChromeAction::Close => {
+                    view.send(UiAction::Shutdown, cx);
+                    window.remove_window();
+                }
+            }))
+    }
+
+    /// Title-bar menu with a working dropdown. Every item does something real.
+    fn menu_entry(&self, id: MenuId, cx: &mut Context<Self>) -> Div {
+        let open = self.menu == Some(id);
+        let mut entry = div().relative().child(
+            div()
+                .id(id.label())
+                .px_3()
+                .h(px(40.))
+                .flex()
+                .items_center()
+                .cursor_pointer()
+                .bg(rgb(if open { PANEL_ACTIVE } else { BG }))
+                .text_color(rgb(if open { TEXT } else { MUTED }))
+                .hover(|d| d.bg(rgb(PANEL_ACTIVE)).text_color(rgb(TEXT)))
+                .child(id.label())
+                .on_click(cx.listener(move |view, _, _, cx| {
+                    view.menu = if view.menu == Some(id) { None } else { Some(id) };
+                    view.notice.clear();
+                    cx.notify();
+                })),
+        );
+        if open {
+            let mut list = div()
+                .absolute()
+                .top(relative(1.))
+                .left(px(0.))
+                .mt(px(4.))
+                .min_w(px(230.))
+                .bg(rgb(PANEL))
+                .border_1()
+                .border_color(rgb(EDGE))
+                .rounded(rad())
+                .p_2()
+                .flex()
+                .flex_col()
+                .gap_1();
+            for (label, command, enabled) in self.menu_items(id) {
+                list = list.child(self.menu_item(label, command, enabled, cx));
+            }
+            entry = entry.child(list);
+        }
+        entry
+    }
+
+    fn menu_items(&self, id: MenuId) -> Vec<(&'static str, MenuCommand, bool)> {
+        let s = &self.state;
+        let active = matches!(s.sequence, SequenceStatus::Running | SequenceStatus::Paused);
+        match id {
+            MenuId::File => vec![
+                (
+                    if s.connected { "Disconnect" } else { "Connect" },
+                    MenuCommand::Send(if s.connected {
+                        UiAction::Disconnect
                     } else {
-                        self.error.clone()
+                        UiAction::Connect
                     }),
-            )
+                    true,
+                ),
+                ("Choose destination…", MenuCommand::Send(UiAction::ChooseDestination), true),
+                ("Quit", MenuCommand::Quit, true),
+            ],
+            MenuId::View => vec![
+                ("Dashboard", MenuCommand::Page(Page::Dashboard), true),
+                ("Preview", MenuCommand::Page(Page::Preview), true),
+                ("Acquisition", MenuCommand::Page(Page::Camera), true),
+                ("Sequence", MenuCommand::Page(Page::Sequence), true),
+                ("Calibration", MenuCommand::Page(Page::Calibration), true),
+                ("Sessions", MenuCommand::Page(Page::Sessions), true),
+                ("Diagnostics", MenuCommand::Page(Page::Diagnostics), true),
+                ("Settings", MenuCommand::Page(Page::Settings), true),
+            ],
+            MenuId::Tools => {
+                let mut items = if active {
+                    vec![
+                        (
+                            if s.sequence == SequenceStatus::Paused { "Resume sequence" } else { "Pause sequence" },
+                            MenuCommand::Send(if s.sequence == SequenceStatus::Paused {
+                                UiAction::ResumeSequence
+                            } else {
+                                UiAction::PauseSequence
+                            }),
+                            true,
+                        ),
+                        ("Stop sequence", MenuCommand::Send(UiAction::StopSequence), true),
+                    ]
+                } else {
+                    vec![
+                        ("Capture one RAW", MenuCommand::Send(UiAction::CaptureOne), s.connected && s.raw_supported),
+                        ("Start sequence", MenuCommand::Send(UiAction::StartSequence), s.connected && s.frames_total > 0),
+                    ]
+                };
+                items.push(("Refresh diagnostics", MenuCommand::Send(UiAction::RefreshDiagnostics), true));
+                items.push(("Refresh sessions", MenuCommand::Send(UiAction::RefreshSessions), true));
+                items
+            }
+            MenuId::Settings => vec![
+                ("Choose destination…", MenuCommand::Send(UiAction::ChooseDestination), true),
+                (
+                    if s.auto_save { "Auto save: on" } else { "Auto save: off" },
+                    MenuCommand::Send(UiAction::SetAutoSave(!s.auto_save)),
+                    true,
+                ),
+                ("Open Settings page", MenuCommand::Page(Page::Settings), true),
+            ],
+            MenuId::Help => vec![("About DeepskyEyes", MenuCommand::About, true)],
+        }
+    }
+
+    fn menu_item(
+        &self,
+        label: &'static str,
+        command: MenuCommand,
+        enabled: bool,
+        cx: &mut Context<Self>,
+    ) -> Stateful<Div> {
+        div()
+            .id(SharedString::from(format!("menu-item-{label}")))
+            .px_3()
+            .py_2()
+            .rounded(rad())
+            .text_color(rgb(if enabled { TEXT } else { MUTED }))
+            .when(enabled, |d| {
+                d.cursor_pointer()
+                    .hover(|d| d.bg(rgb(PANEL_ACTIVE)))
+            })
+            .child(label)
+            .on_click(cx.listener(move |view, _, window, cx| {
+                if !enabled {
+                    return;
+                }
+                view.menu = None;
+                match command.clone() {
+                    MenuCommand::Send(action) => view.send(action, cx),
+                    MenuCommand::Page(page) => {
+                        view.page = page;
+                        view.notice.clear();
+                        cx.notify();
+                    }
+                    MenuCommand::About => {
+                        view.notice = format!(
+                            "DeepskyEyes {} · Pixel remote astrophotography (GPUI desktop)",
+                            env!("CARGO_PKG_VERSION")
+                        );
+                        cx.notify();
+                    }
+                    MenuCommand::Quit => {
+                        view.send(UiAction::Shutdown, cx);
+                        window.remove_window();
+                    }
+                }
+            }))
     }
 
     fn dashboard(&self, cx: &mut Context<Self>) -> Div {
@@ -1243,13 +1566,13 @@ impl Desktop {
             .flex_row()
             .flex_1()
             .min_h_0()
-            .gap_3()
+            .gap_2()
             .child(self.sidebar(cx))
             .child(self.preview_panel(cx))
             .child(
                 div()
                     .id("acquire-col")
-                    .w(px(296.))
+                    .w(px(280.))
                     .flex_shrink_0()
                     .flex()
                     .flex_col()
@@ -1264,7 +1587,7 @@ impl Desktop {
         let edit = s.connected
             && !s.locked
             && !matches!(s.sequence, SequenceStatus::Running | SequenceStatus::Paused);
-        let mut content = panel().p_4().gap_2().child(
+        let mut content = panel().p_3().gap_2().child(
             div()
                 .text_lg()
                 .text_color(rgb(TEXT))
@@ -1428,7 +1751,7 @@ impl Desktop {
             .flex_row()
             .flex_1()
             .min_h_0()
-            .gap_3()
+            .gap_2()
             .child(self.sidebar(cx))
             .child(scroll_col("page-camera").child(content))
     }
@@ -1441,15 +1764,15 @@ impl Desktop {
             .flex_row()
             .flex_1()
             .min_h_0()
-            .gap_3()
+            .gap_2()
             .child(self.sidebar(cx))
             .child(
                 scroll_col("page-sequence")
                     .flex()
                     .flex_col()
-                    .gap_3()
+                    .gap_2()
                     .child(
-                        panel().p_4().gap_2()
+                        panel().p_3().gap_2()
                             .child(div().text_lg().text_color(rgb(TEXT)).child("Sequence"))
                             .child(Self::row("Frames", format!("{:03} / {}", s.frames_done, s.frames_total)))
                             .child(Self::row("Integration", fmt_integration(s.frames_total, s.exposure_ns)))
@@ -1512,7 +1835,7 @@ impl Desktop {
                             )),
                     )
                     .child(
-                        panel().p_4().gap_2()
+                        panel().p_3().gap_2()
                             .child(div().text_lg().text_color(rgb(TEXT)).child("Output"))
                             .child(Self::row("Destination", s.destination.clone()))
                             .child(self.button(
@@ -1529,7 +1852,7 @@ impl Desktop {
     fn diagnostics_page(&self, cx: &mut Context<Self>) -> Div {
         let s = &self.state;
         let mut content = panel()
-            .p_4()
+            .p_3()
             .gap_2()
             .child(div().text_lg().text_color(rgb(TEXT)).child("Diagnostics · raw values"))
             .child(Self::row("Requested exposure (ns)", s.exposure_ns.to_string()))
@@ -1554,13 +1877,13 @@ impl Desktop {
             .flex_row()
             .flex_1()
             .min_h_0()
-            .gap_3()
+            .gap_2()
             .child(self.sidebar(cx))
             .child(scroll_col("page-diagnostics").child(content))
     }
 
     fn simple_page(&self, cx: &mut Context<Self>, title: &str, body: Vec<AnyElement>) -> Div {
-        let mut content = panel().p_4().gap_2().child(
+        let mut content = panel().p_3().gap_2().child(
             div()
                 .text_lg()
                 .text_color(rgb(TEXT))
@@ -1574,18 +1897,10 @@ impl Desktop {
             .flex_row()
             .flex_1()
             .min_h_0()
-            .gap_3()
+            .gap_2()
             .child(self.sidebar(cx))
             .child(scroll_col("page-simple").child(content))
     }
-}
-
-fn menu_label(label: &str) -> Div {
-    div()
-        .px_2()
-        .py_1()
-        .text_color(rgb(MUTED))
-        .child(label.to_string())
 }
 
 fn divider_v() -> Div {
@@ -1603,7 +1918,7 @@ fn scroll_col(id: impl Into<SharedString>) -> Stateful<Div> {
 }
 
 impl Render for Desktop {
-    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let content: AnyElement = match self.page {
             Page::Dashboard | Page::Preview => self.dashboard(cx).into_any_element(),
             Page::Camera => self.camera_page(cx).into_any_element(),
@@ -1707,27 +2022,26 @@ impl Render for Desktop {
             .size_full()
             .flex()
             .flex_col()
-            .gap_3()
-            .p_3()
             .bg(rgb(BG))
             .text_color(rgb(TEXT))
             .text_sm()
             .font_family("Segoe UI")
-            .child(self.menu_bar())
+            .child(self.title_bar(window, cx))
             .child(
                 div()
                     .flex()
                     .flex_col()
                     .flex_1()
                     .min_h_0()
-                    .gap_3()
+                    .gap_2()
+                    .p_2()
                     .child(
                         div()
                             .flex()
                             .flex_row()
                             .flex_1()
                             .min_h_0()
-                            .gap_3()
+                            .gap_2()
                             .child(content),
                     )
                     .child(self.bottom_bar(cx)),

@@ -17,6 +17,9 @@ deepsky-diagnostics = { path = "../deepsky-diagnostics" }
 deepsky-metadata = { path = "../deepsky-metadata" }
 gpui = { version = "=0.2.2", optional = true }
 
+[target.'cfg(windows)'.dependencies]
+windows = { version = "=0.61.3", optional = true, features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging", "Win32_UI_Input_KeyboardAndMouse"] }
+
 [features]
 default = []
-desktop = ["dep:gpui"]
+desktop = ["dep:gpui", "dep:windows"]

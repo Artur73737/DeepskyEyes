@@ -1,5 +1,9 @@
 //! deepsky-app entry point: desktop UI on the main thread, or one real
 //! headless acquisition with --headless. Never prints a fake status.
+//!
+//! GUI subsystem on Windows: double-clicking the exe opens no terminal.
+//! Output still reaches the calling console for --headless runs.
+#![cfg_attr(target_os = "windows", windows_subsystem = "windows")]
 use deepsky_app::{controller, source::Source};
 #[cfg(feature = "desktop")]
 use deepsky_app::worker;
@@ -31,7 +35,20 @@ fn main() {
         eprintln!("deepsky-app {}: headless build (desktop feature off).", controller::APP_VERSION);
         eprintln!("  deepsky-app --headless --out DIR --project NAME [--frames N] [...]");
         eprintln!("  or drive it with deepsky-eyes, or rebuild with --features desktop.");
+        pause_if_terminal();
         std::process::exit(2);
+    }
+}
+
+/// Keep the console window open on double-click so the message above stays
+/// readable. Scripts and pipes are unaffected (no terminal, no wait).
+#[cfg(not(feature = "desktop"))]
+fn pause_if_terminal() {
+    use std::io::IsTerminal;
+    if std::io::stdin().is_terminal() {
+        eprintln!("Press Enter to close.");
+        let mut line = String::new();
+        let _ = std::io::stdin().read_line(&mut line);
     }
 }
 
