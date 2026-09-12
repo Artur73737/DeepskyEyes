@@ -265,7 +265,14 @@ class CameraEngine(context: Context, private val status: (String) -> Unit) : Aut
             val format = stream.getString("format")
             val c = discovery.characteristics(selected!!.getString("camera_id"))
             val data = when(format) {
-                "Dng" -> ByteArrayOutputStream().use { output -> DngCreator(c,result).use { it.writeImage(output,image) }; output.toByteArray() }
+                // DngCreator only accepts the full pixel array: binned/crop RAW sizes
+                // throw AssertionError out of nativeWriteImage. That must become an
+                // explicit protocol error (use Raw16Le for those sizes), never process death.
+                "Dng" -> try {
+                    ByteArrayOutputStream().use { output -> DngCreator(c,result).use { it.writeImage(output,image) }; output.toByteArray() }
+                } catch (e: Throwable) {
+                    fault("Unsupported","DNG writer rejected ${image.width}x${image.height} (${e.message}); use Raw16Le for this size")
+                }
                 "Raw16Le" -> packedRaw(image)
                 "Jpeg" -> ByteArray(image.planes[0].buffer.remaining()).also { image.planes[0].buffer.get(it) }
                 else -> fault("Unsupported","Capture output")

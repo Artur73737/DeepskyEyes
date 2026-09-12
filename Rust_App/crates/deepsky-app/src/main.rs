@@ -103,9 +103,11 @@ fn headless(args: &[String]) -> Result<(), String> {
     let opts = controller::AcquisitionOptions {
         project: flag(args, "project").ok_or("--project NAME required")?,
         out_dir: flag(args, "out").map(Into::into).unwrap_or_else(controller::default_capture_dir),
+        camera_id: flag(args, "camera"),
         frames: parse_u64(args, "frames", 1)? as u32,
         exposure_ns: parse_u64(args, "exposure-ns", 15_000_000_000)?,
         sensitivity: parse_u64(args, "sensitivity", 800)? as u32,
+        zoom_x1000: controller::parse_zoom(flag(args, "zoom").as_deref(), flag(args, "zoom-x1000").as_deref()).map_err(|e| e.to_string())?,
         ..Default::default()
     };
     let report = controller::run_acquisition(&source, &opts).map_err(|e| e.to_string())?;

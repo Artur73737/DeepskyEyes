@@ -5,3 +5,6 @@ pub mod camera;
 pub mod acquire;
 pub mod serve;
 pub mod preview;
+pub mod controls;
+pub mod diagnostics;
+pub mod execute;

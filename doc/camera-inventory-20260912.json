@@ -1,0 +1,2623 @@
+{
+  "cameras": [
+    {
+      "available_result_keys": [
+        "android.blackLevel.lock",
+        "android.colorCorrection.aberrationMode",
+        "android.colorCorrection.gains",
+        "android.colorCorrection.mode",
+        "android.colorCorrection.transform",
+        "android.control.aeAntibandingMode",
+        "android.control.aeExposureCompensation",
+        "android.control.aeLock",
+        "android.control.aeMode",
+        "android.control.aePrecaptureTrigger",
+        "android.control.aeRegions",
+        "android.control.aeState",
+        "android.control.aeTargetFpsRange",
+        "android.control.afMode",
+        "android.control.afRegions",
+        "android.control.afState",
+        "android.control.afTrigger",
+        "android.control.awbLock",
+        "android.control.awbMode",
+        "android.control.awbState",
+        "android.control.captureIntent",
+        "android.control.effectMode",
+        "android.control.enableZsl",
+        "android.control.extendedSceneMode",
+        "android.control.mode",
+        "android.control.postRawSensitivityBoost",
+        "android.control.sceneMode",
+        "android.control.videoStabilizationMode",
+        "android.control.zoomMethod",
+        "android.control.zoomRatio",
+        "android.edge.mode",
+        "android.extension.nightModeIndicator",
+        "android.flash.mode",
+        "android.flash.state",
+        "android.flash.strengthLevel",
+        "android.hotPixel.mode",
+        "android.info.deviceType",
+        "android.jpeg.gpsLocation",
+        "android.jpeg.orientation",
+        "android.jpeg.quality",
+        "android.jpeg.thumbnailQuality",
+        "android.jpeg.thumbnailSize",
+        "android.lens.aperture",
+        "android.lens.distortion",
+        "android.lens.filterDensity",
+        "android.lens.focalLength",
+        "android.lens.focusDistance",
+        "android.lens.focusRange",
+        "android.lens.intrinsicCalibration",
+        "android.lens.opticalStabilizationMode",
+        "android.lens.poseRotation",
+        "android.lens.poseTranslation",
+        "android.lens.state",
+        "android.logicalMultiCamera.activePhysicalId",
+        "android.logicalMultiCamera.additionalResults",
+        "android.noiseReduction.mode",
+        "android.reprocess.effectiveExposureFactor",
+        "android.request.pipelineDepth",
+        "android.scaler.cropRegion",
+        "android.sensor.dynamicBlackLevel",
+        "android.sensor.dynamicWhiteLevel",
+        "android.sensor.exposureTime",
+        "android.sensor.frameDuration",
+        "android.sensor.greenSplit",
+        "android.sensor.neutralColorPoint",
+        "android.sensor.noiseProfile",
+        "android.sensor.pixelMode",
+        "android.sensor.rollingShutterSkew",
+        "android.sensor.sensitivity",
+        "android.sensor.testPatternMode",
+        "android.sensor.timestamp",
+        "android.shading.mode",
+        "android.statistics.faces",
+        "android.statistics.faceDetectMode",
+        "android.statistics.hotPixelMap",
+        "android.statistics.hotPixelMapMode",
+        "android.statistics.lensIntrinsicsSamples",
+        "android.statistics.lensShadingMapMode",
+        "android.statistics.oisDataMode",
+        "android.statistics.oisSamples",
+        "android.statistics.sceneFlicker",
+        "android.tonemap.curve",
+        "android.tonemap.mode",
+        "com.google.pixel.experimental2018.faceSkipFrame",
+        "com.google.pixel.experimental2018.faceLandmark.count",
+        "com.google.pixel.experimental2018.faceLandmark.ids",
+        "com.google.pixel.experimental2018.faceLandmark.xy",
+        "com.google.pixel.experimental2018.faceLandmark.depth",
+        "com.google.pixel.experimental2018.faceOrientation",
+        "com.google.pixel.experimental2020.faceDetectionTimeStamp",
+        "com.google.pixel.experimental2020.faceAttribute.count",
+        "com.google.pixel.experimental2020.faceAttribute.ids",
+        "com.google.pixel.experimental2020.faceAttribute.scores",
+        "com.google.pixel.experimental2020.faceAttribute.value",
+        "com.google.pixel.experimental2021.dynamicProfilingEnabled",
+        "com.google.pixel.experimental2021.computerVisionMode",
+        "com.google.pixel.experimental2021.faceAuthUseCase",
+        "com.google.pixel.experimental2022.faceRectangleSkinArea",
+        "com.google.internal.IsMetadataValid",
+        "com.google.pixel.experimental2023.tofIntegrationTime",
+        "com.google.pixel.experimental2023.tofSampleRate",
+        "com.google.pixel.experimental2023.tofZoneMode",
+        "com.google.pixel.experimental2023.rangingDistanceEnabled",
+        "com.google.pixel.experimental2023.rangingDistance",
+        "com.google.internal.proxyGraphFailureReason",
+        "com.google.internal.proxyCameraOrientation",
+        "com.google.pixel.experimental2025.postProcZoom.targetZoomRatio",
+        "com.google.pixel.experimental2025.sensorBinningFactor",
+        "com.google.pixel.faceAuth.faceAuthScalerCropRegion",
+        "com.google.pixel.experimental2016.3a.hybrid_ae_enable",
+        "com.google.pixel.experimental2017.request.disable_hdrplus",
+        "com.google.pixel.experimental2019.SensorModeFullFov"
+      ],
+      "camera_id": "0",
+      "capabilities": {
+        "active_array": {
+          "height": 3072,
+          "width": 4080,
+          "x": 0,
+          "y": 0
+        },
+        "af_modes": [
+          "off"
+        ],
+        "autofocus_center_supported": true,
+        "camera_id": "0",
+        "crop_supported": true,
+        "eis_modes": [
+          "off",
+          "on"
+        ],
+        "exposure_ns": {
+          "max": 16000001084,
+          "min": 26345
+        },
+        "focus_calibration": "1",
+        "focus_lock": true,
+        "focus_millidiopters": {
+          "max": 9523,
+          "min": 0
+        },
+        "frame_duration_ns": {
+          "max": 16000001084,
+          "min": 0
+        },
+        "hardware_level": "1",
+        "identity": "Google Pixel 8 Pro / Android 17",
+        "lens_facing": "back",
+        "lens_role": null,
+        "logical": true,
+        "manual_sensor": true,
+        "ois_modes": [
+          "off",
+          "on"
+        ],
+        "origin": "Device",
+        "physical_cameras": [
+          {
+            "directly_openable": false,
+            "id": "2",
+            "routable": false
+          },
+          {
+            "directly_openable": false,
+            "id": "3",
+            "routable": false
+          },
+          {
+            "directly_openable": false,
+            "id": "4",
+            "routable": false
+          },
+          {
+            "directly_openable": false,
+            "id": "5",
+            "routable": false
+          },
+          {
+            "directly_openable": false,
+            "id": "6",
+            "routable": false
+          }
+        ],
+        "preview_streams": [
+          {
+            "binned": null,
+            "format": "Rgb8",
+            "height": 144,
+            "min_frame_duration_ns": 33333333,
+            "pixel_mode": "Default",
+            "stall_duration_ns": 0,
+            "width": 176
+          },
+          {
+            "binned": null,
+            "format": "Rgb8",
+            "height": 240,
+            "min_frame_duration_ns": 33333333,
+            "pixel_mode": "Default",
+            "stall_duration_ns": 0,
+            "width": 320
+          },
+          {
+            "binned": null,
+            "format": "Rgb8",
+            "height": 288,
+            "min_frame_duration_ns": 33333333,
+            "pixel_mode": "Default",
+            "stall_duration_ns": 0,
+            "width": 352
+          },
+          {
+            "binned": null,
+            "format": "Rgb8",
+            "height": 360,
+            "min_frame_duration_ns": 16666666,
+            "pixel_mode": "Default",
+            "stall_duration_ns": 0,
+            "width": 640
+          },
+          {
+            "binned": null,
+            "format": "Rgb8",
+            "height": 480,
+            "min_frame_duration_ns": 33333333,
+            "pixel_mode": "Default",
+            "stall_duration_ns": 0,
+            "width": 640
+          },
+          {
+            "binned": null,
+            "format": "Rgb8",
+            "height": 480,
+            "min_frame_duration_ns": 33333333,
+            "pixel_mode": "Default",
+            "stall_duration_ns": 0,
+            "width": 720
+          },
+          {
+            "binned": null,
+            "format": "Rgb8",
+            "height": 600,
+            "min_frame_duration_ns": 33333333,
+            "pixel_mode": "Default",
+            "stall_duration_ns": 0,
+            "width": 800
+          },
+          {
+            "binned": null,
+            "format": "Rgb8",
+            "height": 576,
+            "min_frame_duration_ns": 16666666,
+            "pixel_mode": "Default",
+            "stall_duration_ns": 0,
+            "width": 1024
+          },
+          {
+            "binned": null,
+            "format": "Rgb8",
+            "height": 720,
+            "min_frame_duration_ns": 16666666,
+            "pixel_mode": "Default",
+            "stall_duration_ns": 0,
+            "width": 1280
+          }
+        ],
+        "processing_modes": {
+          "aberration": [
+            "off"
+          ],
+          "distortion": [
+            "off",
+            "fast"
+          ],
+          "edge": [
+            "off",
+            "fast",
+            "high_quality"
+          ],
+          "hot_pixel": [
+            "off",
+            "fast",
+            "high_quality"
+          ],
+          "noise_reduction": [
+            "off",
+            "fast",
+            "high_quality"
+          ],
+          "shading": [
+            "off",
+            "fast",
+            "high_quality"
+          ],
+          "tonemap": [
+            "fast",
+            "high_quality"
+          ]
+        },
+        "raw": true,
+        "schema_version": 1,
+        "sensitivity": {
+          "max": 10666,
+          "min": 21
+        },
+        "streams": [
+          {
+            "binned": null,
+            "format": "Dng",
+            "height": 3072,
+            "min_frame_duration_ns": 33333333,
+            "pixel_mode": "Default",
+            "stall_duration_ns": 0,
+            "width": 4080
+          },
+          {
+            "binned": null,
+            "format": "Raw16Le",
+            "height": 3072,
+            "min_frame_duration_ns": 33333333,
+            "pixel_mode": "Default",
+            "stall_duration_ns": 0,
+            "width": 4080
+          },
+          {
+            "binned": null,
+            "format": "Raw16Le",
+            "height": 2288,
+            "min_frame_duration_ns": 16666666,
+            "pixel_mode": "Default",
+            "stall_duration_ns": 0,
+            "width": 4080
+          },
+          {
+            "binned": null,
+            "format": "Raw16Le",
+            "height": 1536,
+            "min_frame_duration_ns": 16666666,
+            "pixel_mode": "Default",
+            "stall_duration_ns": 0,
+            "width": 2032
+          },
+          {
+            "binned": null,
+            "format": "Raw16Le",
+            "height": 1136,
+            "min_frame_duration_ns": 16666666,
+            "pixel_mode": "Default",
+            "stall_duration_ns": 0,
+            "width": 2016
+          },
+          {
+            "binned": null,
+            "format": "Jpeg",
+            "height": 3024,
+            "min_frame_duration_ns": 33333333,
+            "pixel_mode": "Default",
+            "stall_duration_ns": 0,
+            "width": 4032
+          },
+          {
+            "binned": null,
+            "format": "Jpeg",
+            "height": 3000,
+            "min_frame_duration_ns": 33333333,
+            "pixel_mode": "Default",
+            "stall_duration_ns": 0,
+            "width": 4000
+          },
+          {
+            "binned": null,
+            "format": "Jpeg",
+            "height": 2268,
+            "min_frame_duration_ns": 16666666,
+            "pixel_mode": "Default",
+            "stall_duration_ns": 0,
+            "width": 4032
+          },
+          {
+            "binned": null,
+            "format": "Jpeg",
+            "height": 2160,
+            "min_frame_duration_ns": 16666666,
+            "pixel_mode": "Default",
+            "stall_duration_ns": 0,
+            "width": 3840
+          },
+          {
+            "binned": null,
+            "format": "Jpeg",
+            "height": 2000,
+            "min_frame_duration_ns": 33333333,
+            "pixel_mode": "Default",
+            "stall_duration_ns": 0,
+            "width": 4000
+          },
+          {
+            "binned": null,
+            "format": "Jpeg",
+            "height": 2448,
+            "min_frame_duration_ns": 33333333,
+            "pixel_mode": "Default",
+            "stall_duration_ns": 0,
+            "width": 3264
+          },
+          {
+            "binned": null,
+            "format": "Jpeg",
+            "height": 1836,
+            "min_frame_duration_ns": 16666666,
+            "pixel_mode": "Default",
+            "stall_duration_ns": 0,
+            "width": 3264
+          },
+          {
+            "binned": null,
+            "format": "Jpeg",
+            "height": 1920,
+            "min_frame_duration_ns": 33333333,
+            "pixel_mode": "Default",
+            "stall_duration_ns": 0,
+            "width": 2560
+          },
+          {
+            "binned": null,
+            "format": "Jpeg",
+            "height": 1512,
+            "min_frame_duration_ns": 16666666,
+            "pixel_mode": "Default",
+            "stall_duration_ns": 0,
+            "width": 2688
+          },
+          {
+            "binned": null,
+            "format": "Jpeg",
+            "height": 1920,
+            "min_frame_duration_ns": 33333333,
+            "pixel_mode": "Default",
+            "stall_duration_ns": 0,
+            "width": 1920
+          },
+          {
+            "binned": null,
+            "format": "Jpeg",
+            "height": 1280,
+            "min_frame_duration_ns": 33333333,
+            "pixel_mode": "Default",
+            "stall_duration_ns": 0,
+            "width": 2560
+          },
+          {
+            "binned": null,
+            "format": "Jpeg",
+            "height": 1536,
+            "min_frame_duration_ns": 33333333,
+            "pixel_mode": "Default",
+            "stall_duration_ns": 0,
+            "width": 2048
+          },
+          {
+            "binned": null,
+            "format": "Jpeg",
+            "height": 1440,
+            "min_frame_duration_ns": 33333333,
+            "pixel_mode": "Default",
+            "stall_duration_ns": 0,
+            "width": 1920
+          },
+          {
+            "binned": null,
+            "format": "Jpeg",
+            "height": 1080,
+            "min_frame_duration_ns": 16666666,
+            "pixel_mode": "Default",
+            "stall_duration_ns": 0,
+            "width": 1920
+          },
+          {
+            "binned": null,
+            "format": "Jpeg",
+            "height": 3072,
+            "min_frame_duration_ns": 33333333,
+            "pixel_mode": "Default",
+            "stall_duration_ns": 0,
+            "width": 4080
+          }
+        ],
+        "wb_gain_x1000": null,
+        "wb_kelvin": null,
+        "wb_modes": [
+          "auto",
+          "incandescent",
+          "fluorescent",
+          "warm_fluorescent",
+          "daylight",
+          "cloudy_daylight",
+          "twilight",
+          "shade"
+        ],
+        "wb_tint": null,
+        "zoom_x1000": {
+          "max": 30000,
+          "min": 495
+        }
+      },
+      "characteristics": {
+        "android.colorCorrection.availableAberrationModes": [
+          0
+        ],
+        "android.colorCorrection.availableModes": [
+          0,
+          1,
+          2
+        ],
+        "android.control.aeAvailableAntibandingModes": [
+          3
+        ],
+        "android.control.aeAvailableModes": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "android.control.aeAvailablePriorityModes": [
+          0
+        ],
+        "android.control.aeAvailableTargetFpsRanges": [
+          "[15, 15]",
+          "[15, 24]",
+          "[24, 24]",
+          "[15, 30]",
+          "[24, 30]",
+          "[30, 30]",
+          "[15, 60]",
+          "[60, 60]"
+        ],
+        "android.control.aeCompensationRange": "[-24, 24]",
+        "android.control.aeCompensationStep": {
+          "denominator": 6,
+          "numerator": 1
+        },
+        "android.control.aeLockAvailable": true,
+        "android.control.afAvailableModes": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "android.control.availableEffects": [
+          0
+        ],
+        "android.control.availableExtendedSceneModeCapabilities": [
+          "(mode:0, maxStreamingSize:0 x 0, zoomRatio: 0,494478-30,000000)",
+          "(mode:2, maxStreamingSize:1920 x 1080, zoomRatio: 1,000000-3,000000)"
+        ],
+        "android.control.availableModes": [
+          0,
+          1,
+          2
+        ],
+        "android.control.availableSceneModes": [
+          0,
+          1,
+          5,
+          3,
+          100,
+          101,
+          102,
+          103,
+          104,
+          105
+        ],
+        "android.control.availableVideoStabilizationModes": [
+          0,
+          1,
+          2
+        ],
+        "android.control.awbAvailableModes": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8
+        ],
+        "android.control.awbLockAvailable": true,
+        "android.control.maxRegionsAe": 1,
+        "android.control.maxRegionsAf": 1,
+        "android.control.maxRegionsAwb": 0,
+        "android.control.postRawSensitivityBoostRange": "[100, 1599]",
+        "android.control.zoomRatioRange": "[0.4944783, 30.0]",
+        "android.distortionCorrection.availableModes": [
+          0,
+          1
+        ],
+        "android.edge.availableEdgeModes": [
+          0,
+          1,
+          2
+        ],
+        "android.flash.info.available": true,
+        "android.flash.info.strengthDefaultLevel": 21,
+        "android.flash.info.strengthMaximumLevel": 45,
+        "android.flash.singleStrengthDefaultLevel": 51,
+        "android.flash.singleStrengthMaxLevel": 51,
+        "android.flash.torchStrengthDefaultLevel": 45,
+        "android.flash.torchStrengthMaxLevel": 45,
+        "android.hotPixel.availableHotPixelModes": [
+          0,
+          1,
+          2
+        ],
+        "android.info.deviceType": 0,
+        "android.info.supportedHardwareLevel": 1,
+        "android.jpeg.availableThumbnailSizes": [
+          "0x0",
+          "176x144",
+          "240x144",
+          "256x144",
+          "240x160",
+          "256x154",
+          "246x184",
+          "240x240",
+          "320x216",
+          "320x228",
+          "320x232",
+          "320x240",
+          "408x308"
+        ],
+        "android.lens.distortion": [
+          0.116863295,
+          -0.2136559,
+          0.15810226,
+          0,
+          0
+        ],
+        "android.lens.distortionMaximumResolution": [
+          0.116863295,
+          -0.2136559,
+          0.15810226,
+          0,
+          0
+        ],
+        "android.lens.facing": 1,
+        "android.lens.info.availableApertures": [
+          1.68
+        ],
+        "android.lens.info.availableFilterDensities": [
+          0
+        ],
+        "android.lens.info.availableFocalLengths": [
+          6.9
+        ],
+        "android.lens.info.availableOpticalStabilization": [
+          0,
+          1
+        ],
+        "android.lens.info.focusDistanceCalibration": 1,
+        "android.lens.info.hyperfocalDistance": 0.16937616,
+        "android.lens.info.minimumFocusDistance": 9.523809,
+        "android.lens.intrinsicCalibration": [
+          2819.5132,
+          2819.5132,
+          2059.2512,
+          1526.6497,
+          0
+        ],
+        "android.lens.intrinsicCalibrationMaximumResolution": [
+          5639.0264,
+          5639.0264,
+          4118.5024,
+          3053.2993,
+          0
+        ],
+        "android.lens.poseReference": 0,
+        "android.lens.poseRotation": [
+          -0.70710677,
+          0.70710677,
+          0,
+          0
+        ],
+        "android.lens.poseTranslation": [
+          0,
+          0,
+          0
+        ],
+        "android.logicalMultiCamera.sensorSyncType": 0,
+        "android.noiseReduction.availableNoiseReductionModes": [
+          0,
+          1,
+          2
+        ],
+        "android.reprocess.maxCaptureStall": 0,
+        "android.request.availableCapabilities": [
+          0,
+          1,
+          5,
+          2,
+          6,
+          19,
+          3,
+          9,
+          11,
+          18
+        ],
+        "android.request.availableDynamicRangeProfiles": "android.hardware.camera2.params.DynamicRangeProfiles@24044a0",
+        "android.request.maxNumInputStreams": 0,
+        "android.request.maxNumOutputProc": 3,
+        "android.request.maxNumOutputProcStalling": 2,
+        "android.request.maxNumOutputRaw": 1,
+        "android.request.partialResultCount": 2,
+        "android.request.pipelineMaxDepth": 7,
+        "android.request.recommendedTenBitDynamicRangeProfile": 2,
+        "android.scaler.availableMaxDigitalZoom": 30,
+        "android.scaler.availableStreamUseCases": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          65536
+        ],
+        "android.scaler.croppingType": 0,
+        "android.scaler.mandatoryConcurrentStreamCombinations": [
+          "android.hardware.camera2.params.MandatoryStreamCombination@ef921d1b",
+          "android.hardware.camera2.params.MandatoryStreamCombination@a4551964",
+          "android.hardware.camera2.params.MandatoryStreamCombination@2b5b9634",
+          "android.hardware.camera2.params.MandatoryStreamCombination@517b213e",
+          "android.hardware.camera2.params.MandatoryStreamCombination@fa054695",
+          "android.hardware.camera2.params.MandatoryStreamCombination@b0514b16",
+          "android.hardware.camera2.params.MandatoryStreamCombination@2d094b16",
+          "android.hardware.camera2.params.MandatoryStreamCombination@22f06517",
+          "android.hardware.camera2.params.MandatoryStreamCombination@1b046517"
+        ],
+        "android.scaler.mandatoryPreviewStabilizationOutputStreamCombinations": [
+          "android.hardware.camera2.params.MandatoryStreamCombination@6dd08cd2",
+          "android.hardware.camera2.params.MandatoryStreamCombination@de648cd2",
+          "android.hardware.camera2.params.MandatoryStreamCombination@a7d79fd3",
+          "android.hardware.camera2.params.MandatoryStreamCombination@ccef3644",
+          "android.hardware.camera2.params.MandatoryStreamCombination@4cf1d9df",
+          "android.hardware.camera2.params.MandatoryStreamCombination@b727c670",
+          "android.hardware.camera2.params.MandatoryStreamCombination@38a7f6c0",
+          "android.hardware.camera2.params.MandatoryStreamCombination@3fb3f6c0",
+          "android.hardware.camera2.params.MandatoryStreamCombination@9c8ff6c0",
+          "android.hardware.camera2.params.MandatoryStreamCombination@9db3f6c0"
+        ],
+        "android.scaler.mandatoryStreamCombinations": [
+          "android.hardware.camera2.params.MandatoryStreamCombination@ec41e500",
+          "android.hardware.camera2.params.MandatoryStreamCombination@ffa780e6",
+          "android.hardware.camera2.params.MandatoryStreamCombination@b8fa83b1",
+          "android.hardware.camera2.params.MandatoryStreamCombination@a150834b",
+          "android.hardware.camera2.params.MandatoryStreamCombination@801f1fd6",
+          "android.hardware.camera2.params.MandatoryStreamCombination@d7a0d329",
+          "android.hardware.camera2.params.MandatoryStreamCombination@ff02587",
+          "android.hardware.camera2.params.MandatoryStreamCombination@3f0c4f5c",
+          "android.hardware.camera2.params.MandatoryStreamCombination@9bda6f83",
+          "android.hardware.camera2.params.MandatoryStreamCombination@bfbe3072",
+          "android.hardware.camera2.params.MandatoryStreamCombination@c51d51a2",
+          "android.hardware.camera2.params.MandatoryStreamCombination@c7369bf7",
+          "android.hardware.camera2.params.MandatoryStreamCombination@2624deaa",
+          "android.hardware.camera2.params.MandatoryStreamCombination@63f536f5",
+          "android.hardware.camera2.params.MandatoryStreamCombination@c3d70adb",
+          "android.hardware.camera2.params.MandatoryStreamCombination@984e5de2",
+          "android.hardware.camera2.params.MandatoryStreamCombination@f385c50c",
+          "android.hardware.camera2.params.MandatoryStreamCombination@717b72cb",
+          "android.hardware.camera2.params.MandatoryStreamCombination@26aa25f2",
+          "android.hardware.camera2.params.MandatoryStreamCombination@42d7fab7",
+          "android.hardware.camera2.params.MandatoryStreamCombination@b19bdd51",
+          "android.hardware.camera2.params.MandatoryStreamCombination@c37d4c15",
+          "android.hardware.camera2.params.MandatoryStreamCombination@dc92f80b",
+          "android.hardware.camera2.params.MandatoryStreamCombination@3407b8db",
+          "android.hardware.camera2.params.MandatoryStreamCombination@56b45274",
+          "android.hardware.camera2.params.MandatoryStreamCombination@321acbf5",
+          "android.hardware.camera2.params.MandatoryStreamCombination@77c99339",
+          "android.hardware.camera2.params.MandatoryStreamCombination@1a707110",
+          "android.hardware.camera2.params.MandatoryStreamCombination@52739c98",
+          "android.hardware.camera2.params.MandatoryStreamCombination@dec2967e",
+          "android.hardware.camera2.params.MandatoryStreamCombination@cea98baa"
+        ],
+        "android.scaler.mandatoryTenBitOutputStreamCombinations": [
+          "android.hardware.camera2.params.MandatoryStreamCombination@ec41e500",
+          "android.hardware.camera2.params.MandatoryStreamCombination@a1b683b1",
+          "android.hardware.camera2.params.MandatoryStreamCombination@85fc2791",
+          "android.hardware.camera2.params.MandatoryStreamCombination@a585cf82",
+          "android.hardware.camera2.params.MandatoryStreamCombination@8b0410c7",
+          "android.hardware.camera2.params.MandatoryStreamCombination@19d5e4e1",
+          "android.hardware.camera2.params.MandatoryStreamCombination@4a76ddee",
+          "android.hardware.camera2.params.MandatoryStreamCombination@4d02f4f7"
+        ],
+        "android.scaler.mandatoryUseCaseStreamCombinations": [
+          "android.hardware.camera2.params.MandatoryStreamCombination@19fa71fb",
+          "android.hardware.camera2.params.MandatoryStreamCombination@d5dd7ea3",
+          "android.hardware.camera2.params.MandatoryStreamCombination@5e4b8276",
+          "android.hardware.camera2.params.MandatoryStreamCombination@4c46dcc2",
+          "android.hardware.camera2.params.MandatoryStreamCombination@6ac60822",
+          "android.hardware.camera2.params.MandatoryStreamCombination@9db2598b",
+          "android.hardware.camera2.params.MandatoryStreamCombination@d1664c47",
+          "android.hardware.camera2.params.MandatoryStreamCombination@c1dbba9d",
+          "android.hardware.camera2.params.MandatoryStreamCombination@8ae2bf73",
+          "android.hardware.camera2.params.MandatoryStreamCombination@df650995",
+          "android.hardware.camera2.params.MandatoryStreamCombination@771123e5",
+          "android.hardware.camera2.params.MandatoryStreamCombination@dacf0df8",
+          "android.hardware.camera2.params.MandatoryStreamCombination@53dec3a4",
+          "android.hardware.camera2.params.MandatoryStreamCombination@68dd4fe8",
+          "android.hardware.camera2.params.MandatoryStreamCombination@2e3610c9",
+          "android.hardware.camera2.params.MandatoryStreamCombination@b0f531b1",
+          "android.hardware.camera2.params.MandatoryStreamCombination@6eec291f",
+          "android.hardware.camera2.params.MandatoryStreamCombination@53ad35d3",
+          "android.hardware.camera2.params.MandatoryStreamCombination@e4490d24",
+          "android.hardware.camera2.params.MandatoryStreamCombination@b07eda5",
+          "android.hardware.camera2.params.MandatoryStreamCombination@1b50010a",
+          "android.hardware.camera2.params.MandatoryStreamCombination@c18f6017",
+          "android.hardware.camera2.params.MandatoryStreamCombination@2b3eb6b0",
+          "android.hardware.camera2.params.MandatoryStreamCombination@bd6ad3f2",
+          "android.hardware.camera2.params.MandatoryStreamCombination@8d2695c0"
+        ],
+        "android.scaler.multiResolutionStreamConfigurationMap": "MultiResolutionStreamConfigurationMap(Outputs([RAW_SENSOR:[w:4080, h:3072, id:2], [w:4000, h:3000, id:3], [w:4032, h:3024, id:4], [w:4080, h:3072, id:5], [w:4032, h:3024, id:6], Concurrency not supported][RAW10:[w:4080, h:3072, id:2], [w:4000, h:3000, id:3], [w:4032, h:3024, id:4], [w:4080, h:3072, id:5], [w:4032, h:3024, id:6], Concurrency not supported]),Inputs())",
+        "android.scaler.streamConfigurationMap": "StreamConfiguration(Outputs([w:4080, h:3072, format:RAW_SENSOR(32), min_duration:33333333, stall:0], [w:4080, h:2288, format:RAW_SENSOR(32), min_duration:16666666, stall:0], [w:2032, h:1536, format:RAW_SENSOR(32), min_duration:16666666, stall:0], [w:2016, h:1136, format:RAW_SENSOR(32), min_duration:16666666, stall:0], [w:4032, h:3024, format:JPEG(256), min_duration:33333333, stall:0], [w:4000, h:3000, format:JPEG(256), min_duration:33333333, stall:0], [w:4032, h:2268, format:JPEG(256), min_duration:16666666, stall:0], [w:3840, h:2160, format:JPEG(256), min_duration:16666666, stall:0], [w:4000, h:2000, format:JPEG(256), min_duration:33333333, stall:0], [w:3264, h:2448, format:JPEG(256), min_duration:33333333, stall:0], [w:3264, h:1836, format:JPEG(256), min_duration:16666666, stall:0], [w:2560, h:1920, format:JPEG(256), min_duration:33333333, stall:0], [w:2688, h:1512, format:JPEG(256), min_duration:16666666, stall:0], [w:1920, h:1920, format:JPEG(256), min_duration:33333333, stall:0], [w:2560, h:1280, format:JPEG(256), min_duration:33333333, stall:0], [w:2048, h:1536, format:JPEG(256), min_duration:33333333, stall:0], [w:1920, h:1440, format:JPEG(256), min_duration:33333333, stall:0], [w:1920, h:1080, format:JPEG(256), min_duration:16666666, stall:0], [w:4080, h:3072, format:JPEG(256), min_duration:33333333, stall:0], [w:4032, h:3024, format:PRIVATE(34), min_duration:33333333, stall:0], [w:4000, h:3000, format:PRIVATE(34), min_duration:33333333, stall:0], [w:4032, h:2268, format:PRIVATE(34), min_duration:16666666, stall:0], [w:3840, h:2160, format:PRIVATE(34), min_duration:16666666, stall:0], [w:4000, h:2000, format:PRIVATE(34), min_duration:33333333, stall:0], [w:3264, h:2448, format:PRIVATE(34), min_duration:33333333, stall:0], [w:3264, h:1836, format:PRIVATE(34), min_duration:16666666, stall:0], [w:2560, h:1920, format:PRIVATE(34), min_duration:33333333, stall:0], [w:2688, h:1512, format:PRIVATE(34), min_duration:16666666, stall:0], [w:1920, h:1920, format:PRIVATE(34), min_duration:33333333, stall:0], [w:2560, h:1280, format:PRIVATE(34), min_duration:33333333, stall:0], [w:2048, h:1536, format:PRIVATE(34), min_duration:33333333, stall:0], [w:1920, h:1440, format:PRIVATE(34), min_duration:33333333, stall:0], [w:1920, h:1080, format:PRIVATE(34), min_duration:16666666, stall:0], [w:1600, h:1200, format:PRIVATE(34), min_duration:33333333, stall:0], [w:1920, h:960, format:PRIVATE(34), min_duration:33333333, stall:0], [w:1792, h:1008, format:PRIVATE(34), min_duration:16666666, stall:0], [w:1440, h:1080, format:PRIVATE(34), min_duration:33333333, stall:0], [w:1344, h:1008, format:PRIVATE(34), min_duration:33333333, stall:0], [w:1280, h:960, format:PRIVATE(34), min_duration:33333333, stall:0], [w:1080, h:1080, format:PRIVATE(34), min_duration:33333333, stall:0], [w:1280, h:720, format:PRIVATE(34), min_duration:16666666, stall:0], [w:1024, h:768, format:PRIVATE(34), min_duration:33333333, stall:0], [w:1024, h:576, format:PRIVATE(34), min_duration:16666666, stall:0], [w:800, h:600, format:PRIVATE(34), min_duration:33333333, stall:0], [w:720, h:480, format:PRIVATE(34), min_duration:33333333, stall:0], [w:640, h:480, format:PRIVATE(34), min_duration:33333333, stall:0], [w:640, h:360, format:PRIVATE(34), min_duration:16666666, stall:0], [w:352, h:288, format:PRIVATE(34), min_duration:33333333, stall:0], [w:320, h:240, format:PRIVATE(34), min_duration:33333333, stall:0], [w:176, h:144, format:PRIVATE(34), min_duration:33333333, stall:0], [w:4080, h:3072, format:PRIVATE(34), min_duration:33333333, stall:0], [w:4032, h:3024, format:YUV_420_888(35), min_duration:33333333, stall:0], [w:4000, h:3000, format:YUV_420_888(35), min_duration:33333333, stall:0], [w:4032, h:2268, format:YUV_420_888(35), min_duration:16666666, stall:0], [w:3840, h:2160, format:YUV_420_888(35), min_duration:16666666, stall:0], [w:4000, h:2000, format:YUV_420_888(35), min_duration:33333333, stall:0], [w:3264, h:2448, format:YUV_420_888(35), min_duration:33333333, stall:0], [w:3264, h:1836, format:YUV_420_888(35), min_duration:16666666, stall:0], [w:2560, h:1920, format:YUV_420_888(35), min_duration:33333333, stall:0], [w:2688, h:1512, format:YUV_420_888(35), min_duration:16666666, stall:0], [w:1920, h:1920, format:YUV_420_888(35), min_duration:33333333, stall:0], [w:2560, h:1280, format:YUV_420_888(35), min_duration:33333333, stall:0], [w:2048, h:1536, format:YUV_420_888(35), min_duration:33333333, stall:0], [w:1920, h:1440, format:YUV_420_888(35), min_duration:33333333, stall:0], [w:1920, h:1080, format:YUV_420_888(35), min_duration:16666666, stall:0], [w:1600, h:1200, format:YUV_420_888(35), min_duration:33333333, stall:0], [w:1920, h:960, format:YUV_420_888(35), min_duration:33333333, stall:0], [w:1792, h:1008, format:YUV_420_888(35), min_duration:16666666, stall:0], [w:1440, h:1080, format:YUV_420_888(35), min_duration:33333333, stall:0], [w:1344, h:1008, format:YUV_420_888(35), min_duration:33333333, stall:0], [w:1280, h:960, format:YUV_420_888(35), min_duration:33333333, stall:0], [w:1080, h:1080, format:YUV_420_888(35), min_duration:33333333, stall:0], [w:1280, h:720, format:YUV_420_888(35), min_duration:16666666, stall:0], [w:1024, h:768, format:YUV_420_888(35), min_duration:33333333, stall:0], [w:1024, h:576, format:YUV_420_888(35), min_duration:16666666, stall:0], [w:800, h:600, format:YUV_420_888(35), min_duration:33333333, stall:0], [w:720, h:480, format:YUV_420_888(35), min_duration:33333333, stall:0], [w:640, h:480, format:YUV_420_888(35), min_duration:33333333, stall:0], [w:640, h:360, format:YUV_420_888(35), min_duration:16666666, stall:0], [w:352, h:288, format:YUV_420_888(35), min_duration:33333333, stall:0], [w:320, h:240, format:YUV_420_888(35), min_duration:33333333, stall:0], [w:176, h:144, format:YUV_420_888(35), min_duration:33333333, stall:0], [w:4080, h:3072, format:YUV_420_888(35), min_duration:33333333, stall:0], [w:4080, h:3072, format:RAW10(37), min_duration:33333333, stall:0], [w:4080, h:2288, format:RAW10(37), min_duration:16666666, stall:0], [w:2032, h:1536, format:RAW10(37), min_duration:16666666, stall:0], [w:2016, h:1136, format:RAW10(37), min_duration:16666666, stall:0], [w:4032, h:3024, format:UNKNOWN(54), min_duration:33333333, stall:0], [w:4000, h:3000, format:UNKNOWN(54), min_duration:33333333, stall:0], [w:4032, h:2268, format:UNKNOWN(54), min_duration:16666666, stall:0], [w:3840, h:2160, format:UNKNOWN(54), min_duration:16666666, stall:0], [w:4000, h:2000, format:UNKNOWN(54), min_duration:33333333, stall:0], [w:3264, h:2448, format:UNKNOWN(54), min_duration:33333333, stall:0], [w:3264, h:1836, format:UNKNOWN(54), min_duration:16666666, stall:0], [w:2560, h:1920, format:UNKNOWN(54), min_duration:33333333, stall:0], [w:2688, h:1512, format:UNKNOWN(54), min_duration:16666666, stall:0], [w:1920, h:1920, format:UNKNOWN(54), min_duration:33333333, stall:0], [w:2560, h:1280, format:UNKNOWN(54), min_duration:33333333, stall:0], [w:2048, h:1536, format:UNKNOWN(54), min_duration:33333333, stall:0], [w:1920, h:1440, format:UNKNOWN(54), min_duration:33333333, stall:0], [w:1920, h:1080, format:UNKNOWN(54), min_duration:16666666, stall:0], [w:1600, h:1200, format:UNKNOWN(54), min_duration:33333333, stall:0], [w:1920, h:960, format:UNKNOWN(54), min_duration:33333333, stall:0], [w:1792, h:1008, format:UNKNOWN(54), min_duration:16666666, stall:0], [w:1440, h:1080, format:UNKNOWN(54), min_duration:33333333, stall:0], [w:1344, h:1008, format:UNKNOWN(54), min_duration:33333333, stall:0], [w:1280, h:960, format:UNKNOWN(54), min_duration:33333333, stall:0], [w:1080, h:1080, format:UNKNOWN(54), min_duration:33333333, stall:0], [w:1280, h:720, format:UNKNOWN(54), min_duration:16666666, stall:0], [w:1024, h:768, format:UNKNOWN(54), min_duration:33333333, stall:0], [w:1024, h:576, format:UNKNOWN(54), min_duration:16666666, stall:0], [w:800, h:600, format:UNKNOWN(54), min_duration:33333333, stall:0], [w:720, h:480, format:UNKNOWN(54), min_duration:33333333, stall:0], [w:640, h:480, format:UNKNOWN(54), min_duration:33333333, stall:0], [w:640, h:360, format:UNKNOWN(54), min_duration:16666666, stall:0], [w:352, h:288, format:UNKNOWN(54), min_duration:33333333, stall:0], [w:320, h:240, format:UNKNOWN(54), min_duration:33333333, stall:0], [w:176, h:144, format:UNKNOWN(54), min_duration:33333333, stall:0], [w:4080, h:3072, format:UNKNOWN(54), min_duration:33333333, stall:0]), HighResolutionOutputs(), Inputs(), ValidOutputFormatsForInput(), HighSpeedVideoConfigurations([w:1280, h:720, min_fps:30, max_fps:120], [w:1280, h:720, min_fps:30, max_fps:240], [w:1280, h:720, min_fps:120, max_fps:120], [w:1280, h:720, min_fps:240, max_fps:240], [w:1920, h:1080, min_fps:30, max_fps:120], [w:1920, h:1080, min_fps:30, max_fps:240], [w:1920, h:1080, min_fps:120, max_fps:120], [w:1920, h:1080, min_fps:240, max_fps:240]))",
+        "android.scaler.streamConfigurationMapMaximumResolution": "StreamConfiguration(Outputs([w:1280, h:960, format:PRIVATE(34), min_duration:41666666, stall:0], [w:1344, h:1008, format:PRIVATE(34), min_duration:41666666, stall:0], [w:1792, h:1008, format:PRIVATE(34), min_duration:41666666, stall:0], [w:1440, h:1080, format:PRIVATE(34), min_duration:41666666, stall:0], [w:1920, h:1080, format:PRIVATE(34), min_duration:41666666, stall:0], [w:1280, h:960, format:YUV_420_888(35), min_duration:41666666, stall:0], [w:1344, h:1008, format:YUV_420_888(35), min_duration:41666666, stall:0], [w:1792, h:1008, format:YUV_420_888(35), min_duration:41666666, stall:0], [w:1440, h:1080, format:YUV_420_888(35), min_duration:41666666, stall:0], [w:1920, h:1080, format:YUV_420_888(35), min_duration:41666666, stall:0], [w:8160, h:6144, format:RAW10(37), min_duration:41666666, stall:0]), HighResolutionOutputs(), Inputs(), ValidOutputFormatsForInput(), HighSpeedVideoConfigurations())",
+        "android.sensor.availableTestPatternModes": [
+          0,
+          5
+        ],
+        "android.sensor.blackLevelPattern": "BlackLevelPattern([64, 64], [64, 64])",
+        "android.sensor.calibrationTransform1": "ColorSpaceTransform([6660/6855, 0/1, 0/1], [0/1, 1/1, 0/1], [0/1, 0/1, 3574/3525])",
+        "android.sensor.calibrationTransform2": "ColorSpaceTransform([4961/5059, 0/1, 0/1], [0/1, 1/1, 0/1], [0/1, 0/1, 6406/6504])",
+        "android.sensor.colorTransform1": "ColorSpaceTransform([13106/10000, -7174/10000, 273/10000], [-3461/10000, 13205/10000, 1678/10000], [21/10000, 1574/10000, 7276/10000])",
+        "android.sensor.colorTransform2": "ColorSpaceTransform([8203/10000, -1946/10000, -1185/10000], [-5652/10000, 14300/10000, 984/10000], [-1797/10000, 3846/10000, 4393/10000])",
+        "android.sensor.forwardMatrix1": "ColorSpaceTransform([5498/10000, 3084/10000, 1061/10000], [1168/10000, 9261/10000, -429/10000], [-784/10000, -5295/10000, 14330/10000])",
+        "android.sensor.forwardMatrix2": "ColorSpaceTransform([6524/10000, 1464/10000, 1655/10000], [2572/10000, 7863/10000, -435/10000], [292/10000, -4743/10000, 12703/10000])",
+        "android.sensor.info.activeArraySize": "Rect(0, 0 - 4080, 3072)",
+        "android.sensor.info.activeArraySizeMaximumResolution": "Rect(0, 0 - 8160, 6144)",
+        "android.sensor.info.binningFactor": "2x2",
+        "android.sensor.info.colorFilterArrangement": 2,
+        "android.sensor.info.exposureTimeRange": "[26345, 16000001084]",
+        "android.sensor.info.lensShadingApplied": false,
+        "android.sensor.info.maxFrameDuration": 16000001084,
+        "android.sensor.info.physicalSize": "9.792x7.3728",
+        "android.sensor.info.pixelArraySize": "4080x3072",
+        "android.sensor.info.pixelArraySizeMaximumResolution": "8160x6144",
+        "android.sensor.info.preCorrectionActiveArraySize": "Rect(0, 0 - 4080, 3072)",
+        "android.sensor.info.preCorrectionActiveArraySizeMaximumResolution": "Rect(0, 0 - 8160, 6144)",
+        "android.sensor.info.sensitivityRange": "[21, 10666]",
+        "android.sensor.info.timestampSource": 1,
+        "android.sensor.info.whiteLevel": 1023,
+        "android.sensor.maxAnalogSensitivity": 666,
+        "android.sensor.orientation": 90,
+        "android.sensor.readoutTimestamp": 0,
+        "android.sensor.referenceIlluminant1": 17,
+        "android.sensor.referenceIlluminant2": 21,
+        "android.shading.availableModes": [
+          0,
+          1,
+          2
+        ],
+        "android.statistics.info.availableFaceDetectModes": [
+          0,
+          1,
+          2
+        ],
+        "android.statistics.info.availableHotPixelMapModes": "[Z@e062859",
+        "android.statistics.info.availableLensShadingMapModes": [
+          0,
+          1
+        ],
+        "android.statistics.info.availableOisDataModes": [
+          0
+        ],
+        "android.statistics.info.maxFaceCount": 10,
+        "android.sync.maxLatency": 0,
+        "android.tonemap.availableToneMapModes": [
+          0,
+          1,
+          2
+        ],
+        "android.tonemap.maxCurvePoints": 65,
+        "com.google.hal.logicalcamera.DefaultPhysicalCamId": [
+          2
+        ],
+        "com.google.internal.hdrplus.PayloadFrames": [
+          1
+        ],
+        "com.google.pixel.experimental2018.faceLandmark.availableIds": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "com.google.pixel.experimental2020.faceAttribute.availableIds": [
+          0,
+          1
+        ]
+      },
+      "request_controls": [
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "android.blackLevel.lock"
+        },
+        {
+          "adapter_route": "settings.processing.aberration",
+          "exposed": true,
+          "key": "android.colorCorrection.aberrationMode"
+        },
+        {
+          "adapter_route": "settings.white_balance.Manual.gains_x1000, when advertised",
+          "exposed": true,
+          "key": "android.colorCorrection.gains"
+        },
+        {
+          "adapter_route": "manual WB transform mode, when advertised",
+          "exposed": true,
+          "key": "android.colorCorrection.mode"
+        },
+        {
+          "adapter_route": "settings.white_balance.Manual.transform_millionths, when advertised",
+          "exposed": true,
+          "key": "android.colorCorrection.transform"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "android.control.aeAntibandingMode"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "android.control.aeExposureCompensation"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "android.control.aeLock"
+        },
+        {
+          "adapter_route": "fixed off for acquisition; on during autofocus",
+          "exposed": true,
+          "key": "android.control.aeMode"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "android.control.aePrecaptureTrigger"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "android.control.aeRegions"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "android.control.aeTargetFpsRange"
+        },
+        {
+          "adapter_route": "manual off; autofocus_center operation uses auto",
+          "exposed": true,
+          "key": "android.control.afMode"
+        },
+        {
+          "adapter_route": "autofocus_center operation (central region)",
+          "exposed": true,
+          "key": "android.control.afRegions"
+        },
+        {
+          "adapter_route": "autofocus_center operation",
+          "exposed": true,
+          "key": "android.control.afTrigger"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "android.control.awbLock"
+        },
+        {
+          "adapter_route": "settings.white_balance.Mode",
+          "exposed": true,
+          "key": "android.control.awbMode"
+        },
+        {
+          "adapter_route": "adapter-managed preview/still intent",
+          "exposed": true,
+          "key": "android.control.captureIntent"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "android.control.effectMode"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "android.control.enableZsl"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "android.control.extendedSceneMode"
+        },
+        {
+          "adapter_route": "adapter-managed AUTO",
+          "exposed": true,
+          "key": "android.control.mode"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "android.control.postRawSensitivityBoost"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "android.control.sceneMode"
+        },
+        {
+          "adapter_route": "settings.eis",
+          "exposed": true,
+          "key": "android.control.videoStabilizationMode"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "android.control.zoomMethod"
+        },
+        {
+          "adapter_route": "settings.zoom_x1000",
+          "exposed": true,
+          "key": "android.control.zoomRatio"
+        },
+        {
+          "adapter_route": "settings.processing.distortion",
+          "exposed": true,
+          "key": "android.distortionCorrection.mode"
+        },
+        {
+          "adapter_route": "settings.processing.edge",
+          "exposed": true,
+          "key": "android.edge.mode"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "android.flash.mode"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "android.flash.strengthLevel"
+        },
+        {
+          "adapter_route": "settings.processing.hot_pixel",
+          "exposed": true,
+          "key": "android.hotPixel.mode"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "android.jpeg.gpsLocation"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "android.jpeg.orientation"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "android.jpeg.quality"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "android.jpeg.thumbnailQuality"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "android.jpeg.thumbnailSize"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "android.lens.aperture"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "android.lens.filterDensity"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "android.lens.focalLength"
+        },
+        {
+          "adapter_route": "settings.focus.Manual.millidiopters",
+          "exposed": true,
+          "key": "android.lens.focusDistance"
+        },
+        {
+          "adapter_route": "settings.ois",
+          "exposed": true,
+          "key": "android.lens.opticalStabilizationMode"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "android.logicalMultiCamera.additionalResults"
+        },
+        {
+          "adapter_route": "settings.processing.noise_reduction",
+          "exposed": true,
+          "key": "android.noiseReduction.mode"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "android.reprocess.effectiveExposureFactor"
+        },
+        {
+          "adapter_route": "settings.crop",
+          "exposed": true,
+          "key": "android.scaler.cropRegion"
+        },
+        {
+          "adapter_route": "settings.exposure_ns",
+          "exposed": true,
+          "key": "android.sensor.exposureTime"
+        },
+        {
+          "adapter_route": "settings.frame_duration_ns",
+          "exposed": true,
+          "key": "android.sensor.frameDuration"
+        },
+        {
+          "adapter_route": "settings.stream.pixel_mode",
+          "exposed": true,
+          "key": "android.sensor.pixelMode"
+        },
+        {
+          "adapter_route": "settings.sensitivity",
+          "exposed": true,
+          "key": "android.sensor.sensitivity"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "android.sensor.testPatternMode"
+        },
+        {
+          "adapter_route": "settings.processing.shading",
+          "exposed": true,
+          "key": "android.shading.mode"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "android.statistics.faceDetectMode"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "android.statistics.hotPixelMapMode"
+        },
+        {
+          "adapter_route": "adapter requests ON when advertised",
+          "exposed": true,
+          "key": "android.statistics.lensShadingMapMode"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "android.statistics.oisDataMode"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "android.tonemap.curve"
+        },
+        {
+          "adapter_route": "settings.processing.tonemap (fast/high_quality)",
+          "exposed": true,
+          "key": "android.tonemap.mode"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "com.google.pixel.experimental2020.eisMode"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "com.google.pixel.experimental2021.dynamicProfilingEnabled"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "com.google.pixel.experimental2021.motionDeblur.enabled"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "com.google.pixel.experimental2021.computerVisionMode"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "com.google.pixel.experimental2021.lookaheadEisMode"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "com.google.internal.videoTelephonyCallMode"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "com.google.internal.IsCameraApp1P"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "com.google.pixel.experimental2024.IsCameraExtensions"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "com.google.internal.SensorBinningMode"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "com.google.pixel.experimental2021.faceAuthUseCase"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "com.google.pixel.experimental2021.captureStatus"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "com.google.pixel.experimental2023.sobekEnable"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "com.google.pixel.experimental2023.project11Enable"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "com.google.pixel.experimental2023.tofIntegrationTime"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "com.google.pixel.experimental2023.tofSampleRate"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "com.google.pixel.experimental2023.tofZoneMode"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "com.google.pixel.experimental2023.rangingDistanceEnabled"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "com.google.pixel.experimental2023.rangingDistance"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "com.google.pixel.experimental2022.sensorSyncMode"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "com.google.internal.proxyCameraId"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "com.google.internal.proxyCameraToken"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "com.google.internal.proxyGraphFailureReason"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "com.google.internal.proxyAeExposureCompensation"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "com.google.internal.proxyManualAwbControlFactors"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "com.google.internal.proxyManualAwbControlMode"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "com.google.pixel.experimental2024.isCameraLaunch"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "com.google.pixel.experimental2025.postProcZoom.targetZoomRatio"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "com.google.internal.proxyCameraMirrorMode"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "com.google.pixel.experimental2016.3a.hybrid_ae_enable"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "com.google.pixel.experimental2017.request.disable_hdrplus"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "com.google.internal.ProcessingMode"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "com.google.internal.thermal_throttling"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "com.google.internal.OutputIntent"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "com.google.pixel.experimental2019.SensorModeFullFov"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "com.google.internal.Video60to30FPSThermalThrottle"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "com.google.internal.VideoFpsThrottle"
+        }
+      ]
+    },
+    {
+      "available_result_keys": [
+        "android.blackLevel.lock",
+        "android.colorCorrection.aberrationMode",
+        "android.colorCorrection.gains",
+        "android.colorCorrection.mode",
+        "android.colorCorrection.transform",
+        "android.control.aeAntibandingMode",
+        "android.control.aeExposureCompensation",
+        "android.control.aeLock",
+        "android.control.aeMode",
+        "android.control.aePrecaptureTrigger",
+        "android.control.aeRegions",
+        "android.control.aeState",
+        "android.control.aeTargetFpsRange",
+        "android.control.afMode",
+        "android.control.afRegions",
+        "android.control.afState",
+        "android.control.afTrigger",
+        "android.control.awbLock",
+        "android.control.awbMode",
+        "android.control.awbState",
+        "android.control.captureIntent",
+        "android.control.effectMode",
+        "android.control.enableZsl",
+        "android.control.mode",
+        "android.control.postRawSensitivityBoost",
+        "android.control.sceneMode",
+        "android.control.videoStabilizationMode",
+        "android.control.zoomMethod",
+        "android.control.zoomRatio",
+        "android.edge.mode",
+        "android.extension.nightModeIndicator",
+        "android.flash.mode",
+        "android.flash.state",
+        "android.flash.strengthLevel",
+        "android.hotPixel.mode",
+        "android.info.deviceType",
+        "android.jpeg.gpsLocation",
+        "android.jpeg.orientation",
+        "android.jpeg.quality",
+        "android.jpeg.thumbnailQuality",
+        "android.jpeg.thumbnailSize",
+        "android.lens.aperture",
+        "android.lens.distortion",
+        "android.lens.filterDensity",
+        "android.lens.focalLength",
+        "android.lens.focusDistance",
+        "android.lens.focusRange",
+        "android.lens.intrinsicCalibration",
+        "android.lens.opticalStabilizationMode",
+        "android.lens.poseRotation",
+        "android.lens.poseTranslation",
+        "android.lens.state",
+        "android.logicalMultiCamera.activePhysicalId",
+        "android.noiseReduction.mode",
+        "android.reprocess.effectiveExposureFactor",
+        "android.request.pipelineDepth",
+        "android.scaler.cropRegion",
+        "android.sensor.dynamicBlackLevel",
+        "android.sensor.dynamicWhiteLevel",
+        "android.sensor.exposureTime",
+        "android.sensor.frameDuration",
+        "android.sensor.greenSplit",
+        "android.sensor.neutralColorPoint",
+        "android.sensor.noiseProfile",
+        "android.sensor.rollingShutterSkew",
+        "android.sensor.sensitivity",
+        "android.sensor.testPatternMode",
+        "android.sensor.timestamp",
+        "android.shading.mode",
+        "android.statistics.faces",
+        "android.statistics.faceDetectMode",
+        "android.statistics.hotPixelMap",
+        "android.statistics.hotPixelMapMode",
+        "android.statistics.lensIntrinsicsSamples",
+        "android.statistics.lensShadingMapMode",
+        "android.statistics.oisDataMode",
+        "android.statistics.oisSamples",
+        "android.statistics.sceneFlicker",
+        "android.tonemap.curve",
+        "android.tonemap.mode",
+        "com.google.pixel.experimental2018.faceSkipFrame",
+        "com.google.pixel.experimental2018.faceLandmark.count",
+        "com.google.pixel.experimental2018.faceLandmark.ids",
+        "com.google.pixel.experimental2018.faceLandmark.xy",
+        "com.google.pixel.experimental2018.faceLandmark.depth",
+        "com.google.pixel.experimental2018.faceOrientation",
+        "com.google.pixel.experimental2020.faceDetectionTimeStamp",
+        "com.google.pixel.experimental2020.faceAttribute.count",
+        "com.google.pixel.experimental2020.faceAttribute.ids",
+        "com.google.pixel.experimental2020.faceAttribute.scores",
+        "com.google.pixel.experimental2020.faceAttribute.value",
+        "com.google.pixel.experimental2021.dynamicProfilingEnabled",
+        "com.google.pixel.experimental2021.computerVisionMode",
+        "com.google.pixel.experimental2021.faceAuthUseCase",
+        "com.google.pixel.experimental2022.faceRectangleSkinArea",
+        "com.google.internal.IsMetadataValid",
+        "com.google.pixel.experimental2023.tofIntegrationTime",
+        "com.google.pixel.experimental2023.tofSampleRate",
+        "com.google.pixel.experimental2023.tofZoneMode",
+        "com.google.pixel.experimental2023.rangingDistanceEnabled",
+        "com.google.pixel.experimental2023.rangingDistance",
+        "com.google.internal.proxyGraphFailureReason",
+        "com.google.internal.proxyCameraOrientation",
+        "com.google.pixel.experimental2025.postProcZoom.targetZoomRatio",
+        "com.google.pixel.experimental2025.sensorBinningFactor",
+        "com.google.pixel.faceAuth.faceAuthScalerCropRegion",
+        "com.google.pixel.experimental2016.3a.hybrid_ae_enable",
+        "com.google.pixel.experimental2017.request.disable_hdrplus",
+        "com.google.pixel.experimental2019.SensorModeFullFov"
+      ],
+      "camera_id": "1",
+      "capabilities": {
+        "active_array": {
+          "height": 2448,
+          "width": 3440,
+          "x": 0,
+          "y": 0
+        },
+        "af_modes": [
+          "off"
+        ],
+        "autofocus_center_supported": true,
+        "camera_id": "1",
+        "crop_supported": true,
+        "eis_modes": [
+          "off",
+          "on"
+        ],
+        "exposure_ns": {
+          "max": 1000003181,
+          "min": 46377
+        },
+        "focus_calibration": "1",
+        "focus_lock": true,
+        "focus_millidiopters": {
+          "max": 10000,
+          "min": 0
+        },
+        "frame_duration_ns": {
+          "max": 1000003181,
+          "min": 0
+        },
+        "hardware_level": "1",
+        "identity": "Google Pixel 8 Pro / Android 17",
+        "lens_facing": "front",
+        "lens_role": null,
+        "logical": true,
+        "manual_sensor": true,
+        "ois_modes": [
+          "off"
+        ],
+        "origin": "Device",
+        "physical_cameras": [
+          {
+            "directly_openable": false,
+            "id": "7",
+            "routable": false
+          },
+          {
+            "directly_openable": false,
+            "id": "8",
+            "routable": false
+          }
+        ],
+        "preview_streams": [
+          {
+            "binned": null,
+            "format": "Rgb8",
+            "height": 144,
+            "min_frame_duration_ns": 33333333,
+            "pixel_mode": "Default",
+            "stall_duration_ns": 0,
+            "width": 176
+          },
+          {
+            "binned": null,
+            "format": "Rgb8",
+            "height": 240,
+            "min_frame_duration_ns": 33333333,
+            "pixel_mode": "Default",
+            "stall_duration_ns": 0,
+            "width": 320
+          },
+          {
+            "binned": null,
+            "format": "Rgb8",
+            "height": 288,
+            "min_frame_duration_ns": 33333333,
+            "pixel_mode": "Default",
+            "stall_duration_ns": 0,
+            "width": 352
+          },
+          {
+            "binned": null,
+            "format": "Rgb8",
+            "height": 360,
+            "min_frame_duration_ns": 16666666,
+            "pixel_mode": "Default",
+            "stall_duration_ns": 0,
+            "width": 640
+          },
+          {
+            "binned": null,
+            "format": "Rgb8",
+            "height": 480,
+            "min_frame_duration_ns": 33333333,
+            "pixel_mode": "Default",
+            "stall_duration_ns": 0,
+            "width": 640
+          },
+          {
+            "binned": null,
+            "format": "Rgb8",
+            "height": 480,
+            "min_frame_duration_ns": 33333333,
+            "pixel_mode": "Default",
+            "stall_duration_ns": 0,
+            "width": 720
+          },
+          {
+            "binned": null,
+            "format": "Rgb8",
+            "height": 600,
+            "min_frame_duration_ns": 33333333,
+            "pixel_mode": "Default",
+            "stall_duration_ns": 0,
+            "width": 800
+          },
+          {
+            "binned": null,
+            "format": "Rgb8",
+            "height": 576,
+            "min_frame_duration_ns": 16666666,
+            "pixel_mode": "Default",
+            "stall_duration_ns": 0,
+            "width": 1024
+          },
+          {
+            "binned": null,
+            "format": "Rgb8",
+            "height": 720,
+            "min_frame_duration_ns": 16666666,
+            "pixel_mode": "Default",
+            "stall_duration_ns": 0,
+            "width": 1280
+          }
+        ],
+        "processing_modes": {
+          "aberration": [
+            "off"
+          ],
+          "distortion": [
+            "off",
+            "fast"
+          ],
+          "edge": [
+            "off",
+            "fast",
+            "high_quality"
+          ],
+          "hot_pixel": [
+            "off",
+            "fast",
+            "high_quality"
+          ],
+          "noise_reduction": [
+            "off",
+            "fast",
+            "high_quality"
+          ],
+          "shading": [
+            "off",
+            "fast",
+            "high_quality"
+          ],
+          "tonemap": [
+            "fast",
+            "high_quality"
+          ]
+        },
+        "raw": true,
+        "schema_version": 1,
+        "sensitivity": {
+          "max": 4873,
+          "min": 51
+        },
+        "streams": [
+          {
+            "binned": null,
+            "format": "Dng",
+            "height": 2448,
+            "min_frame_duration_ns": 33333333,
+            "pixel_mode": "Default",
+            "stall_duration_ns": 0,
+            "width": 3440
+          },
+          {
+            "binned": null,
+            "format": "Raw16Le",
+            "height": 2448,
+            "min_frame_duration_ns": 33333333,
+            "pixel_mode": "Default",
+            "stall_duration_ns": 0,
+            "width": 3440
+          },
+          {
+            "binned": null,
+            "format": "Jpeg",
+            "height": 2448,
+            "min_frame_duration_ns": 33333333,
+            "pixel_mode": "Default",
+            "stall_duration_ns": 0,
+            "width": 3264
+          },
+          {
+            "binned": null,
+            "format": "Jpeg",
+            "height": 1836,
+            "min_frame_duration_ns": 33333333,
+            "pixel_mode": "Default",
+            "stall_duration_ns": 0,
+            "width": 3264
+          },
+          {
+            "binned": null,
+            "format": "Jpeg",
+            "height": 1920,
+            "min_frame_duration_ns": 33333333,
+            "pixel_mode": "Default",
+            "stall_duration_ns": 0,
+            "width": 2560
+          },
+          {
+            "binned": null,
+            "format": "Jpeg",
+            "height": 1512,
+            "min_frame_duration_ns": 33333333,
+            "pixel_mode": "Default",
+            "stall_duration_ns": 0,
+            "width": 2688
+          },
+          {
+            "binned": null,
+            "format": "Jpeg",
+            "height": 1920,
+            "min_frame_duration_ns": 33333333,
+            "pixel_mode": "Default",
+            "stall_duration_ns": 0,
+            "width": 1920
+          },
+          {
+            "binned": null,
+            "format": "Jpeg",
+            "height": 1280,
+            "min_frame_duration_ns": 33333333,
+            "pixel_mode": "Default",
+            "stall_duration_ns": 0,
+            "width": 2560
+          },
+          {
+            "binned": null,
+            "format": "Jpeg",
+            "height": 1536,
+            "min_frame_duration_ns": 33333333,
+            "pixel_mode": "Default",
+            "stall_duration_ns": 0,
+            "width": 2048
+          },
+          {
+            "binned": null,
+            "format": "Jpeg",
+            "height": 1440,
+            "min_frame_duration_ns": 33333333,
+            "pixel_mode": "Default",
+            "stall_duration_ns": 0,
+            "width": 1920
+          },
+          {
+            "binned": null,
+            "format": "Jpeg",
+            "height": 1080,
+            "min_frame_duration_ns": 16666666,
+            "pixel_mode": "Default",
+            "stall_duration_ns": 0,
+            "width": 1920
+          },
+          {
+            "binned": null,
+            "format": "Jpeg",
+            "height": 2448,
+            "min_frame_duration_ns": 33333333,
+            "pixel_mode": "Default",
+            "stall_duration_ns": 0,
+            "width": 3440
+          }
+        ],
+        "wb_gain_x1000": null,
+        "wb_kelvin": null,
+        "wb_modes": [
+          "auto",
+          "incandescent",
+          "fluorescent",
+          "warm_fluorescent",
+          "daylight",
+          "cloudy_daylight",
+          "twilight",
+          "shade"
+        ],
+        "wb_tint": null,
+        "zoom_x1000": {
+          "max": 10000,
+          "min": 896
+        }
+      },
+      "characteristics": {
+        "android.colorCorrection.availableAberrationModes": [
+          0
+        ],
+        "android.colorCorrection.availableModes": [
+          0,
+          1,
+          2
+        ],
+        "android.control.aeAvailableAntibandingModes": [
+          3
+        ],
+        "android.control.aeAvailableModes": [
+          0,
+          1
+        ],
+        "android.control.aeAvailablePriorityModes": [
+          0
+        ],
+        "android.control.aeAvailableTargetFpsRanges": [
+          "[15, 15]",
+          "[15, 24]",
+          "[24, 24]",
+          "[15, 30]",
+          "[24, 30]",
+          "[30, 30]",
+          "[15, 60]",
+          "[60, 60]"
+        ],
+        "android.control.aeCompensationRange": "[-24, 24]",
+        "android.control.aeCompensationStep": {
+          "denominator": 6,
+          "numerator": 1
+        },
+        "android.control.aeLockAvailable": true,
+        "android.control.afAvailableModes": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "android.control.availableEffects": [
+          0
+        ],
+        "android.control.availableModes": [
+          0,
+          1,
+          2
+        ],
+        "android.control.availableSceneModes": [
+          0,
+          1,
+          5,
+          3,
+          100,
+          101,
+          102,
+          103,
+          104,
+          105
+        ],
+        "android.control.availableVideoStabilizationModes": [
+          0,
+          1,
+          2
+        ],
+        "android.control.awbAvailableModes": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8
+        ],
+        "android.control.awbLockAvailable": true,
+        "android.control.maxRegionsAe": 1,
+        "android.control.maxRegionsAf": 1,
+        "android.control.maxRegionsAwb": 0,
+        "android.control.postRawSensitivityBoostRange": "[100, 1599]",
+        "android.control.zoomRatioRange": "[0.8958333, 10.0]",
+        "android.distortionCorrection.availableModes": [
+          0,
+          1
+        ],
+        "android.edge.availableEdgeModes": [
+          0,
+          1,
+          2
+        ],
+        "android.flash.info.available": false,
+        "android.flash.singleStrengthDefaultLevel": 1,
+        "android.flash.singleStrengthMaxLevel": 1,
+        "android.flash.torchStrengthDefaultLevel": 1,
+        "android.flash.torchStrengthMaxLevel": 1,
+        "android.hotPixel.availableHotPixelModes": [
+          0,
+          1,
+          2
+        ],
+        "android.info.deviceType": 0,
+        "android.info.supportedHardwareLevel": 1,
+        "android.jpeg.availableThumbnailSizes": [
+          "0x0",
+          "176x144",
+          "240x144",
+          "256x144",
+          "240x160",
+          "256x154",
+          "246x184",
+          "240x240",
+          "320x216",
+          "320x228",
+          "320x232",
+          "320x240",
+          "408x308"
+        ],
+        "android.lens.distortion": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "android.lens.facing": 0,
+        "android.lens.info.availableApertures": [
+          2.2
+        ],
+        "android.lens.info.availableFilterDensities": [
+          0
+        ],
+        "android.lens.info.availableFocalLengths": [
+          2.74
+        ],
+        "android.lens.info.availableOpticalStabilization": [
+          0
+        ],
+        "android.lens.info.focusDistanceCalibration": 1,
+        "android.lens.info.hyperfocalDistance": 0.71500885,
+        "android.lens.info.minimumFocusDistance": 10,
+        "android.lens.intrinsicCalibration": [
+          2245.9014,
+          2245.9014,
+          1720,
+          1224,
+          0
+        ],
+        "android.lens.poseReference": 0,
+        "android.lens.poseRotation": [
+          0,
+          0,
+          0,
+          1
+        ],
+        "android.lens.poseTranslation": [
+          0,
+          0,
+          0
+        ],
+        "android.logicalMultiCamera.sensorSyncType": 0,
+        "android.noiseReduction.availableNoiseReductionModes": [
+          0,
+          1,
+          2
+        ],
+        "android.reprocess.maxCaptureStall": 0,
+        "android.request.availableCapabilities": [
+          0,
+          1,
+          5,
+          2,
+          6,
+          19,
+          3,
+          11,
+          18
+        ],
+        "android.request.availableDynamicRangeProfiles": "android.hardware.camera2.params.DynamicRangeProfiles@6c07c1e",
+        "android.request.maxNumInputStreams": 0,
+        "android.request.maxNumOutputProc": 3,
+        "android.request.maxNumOutputProcStalling": 2,
+        "android.request.maxNumOutputRaw": 1,
+        "android.request.partialResultCount": 2,
+        "android.request.pipelineMaxDepth": 7,
+        "android.request.recommendedTenBitDynamicRangeProfile": 2,
+        "android.scaler.availableMaxDigitalZoom": 10,
+        "android.scaler.availableStreamUseCases": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "android.scaler.croppingType": 0,
+        "android.scaler.mandatoryConcurrentStreamCombinations": [
+          "android.hardware.camera2.params.MandatoryStreamCombination@ef921d1b",
+          "android.hardware.camera2.params.MandatoryStreamCombination@a4551964",
+          "android.hardware.camera2.params.MandatoryStreamCombination@2b5b9634",
+          "android.hardware.camera2.params.MandatoryStreamCombination@517b213e",
+          "android.hardware.camera2.params.MandatoryStreamCombination@fa054695",
+          "android.hardware.camera2.params.MandatoryStreamCombination@b0514b16",
+          "android.hardware.camera2.params.MandatoryStreamCombination@2d094b16",
+          "android.hardware.camera2.params.MandatoryStreamCombination@22f06517",
+          "android.hardware.camera2.params.MandatoryStreamCombination@1b046517"
+        ],
+        "android.scaler.mandatoryPreviewStabilizationOutputStreamCombinations": [
+          "android.hardware.camera2.params.MandatoryStreamCombination@6dd08cd2",
+          "android.hardware.camera2.params.MandatoryStreamCombination@de648cd2",
+          "android.hardware.camera2.params.MandatoryStreamCombination@620a9406",
+          "android.hardware.camera2.params.MandatoryStreamCombination@838bd77a",
+          "android.hardware.camera2.params.MandatoryStreamCombination@39d38e1",
+          "android.hardware.camera2.params.MandatoryStreamCombination@7382cda5",
+          "android.hardware.camera2.params.MandatoryStreamCombination@38a7f6c0",
+          "android.hardware.camera2.params.MandatoryStreamCombination@3fb3f6c0",
+          "android.hardware.camera2.params.MandatoryStreamCombination@9c8ff6c0",
+          "android.hardware.camera2.params.MandatoryStreamCombination@9db3f6c0"
+        ],
+        "android.scaler.mandatoryStreamCombinations": [
+          "android.hardware.camera2.params.MandatoryStreamCombination@db80c726",
+          "android.hardware.camera2.params.MandatoryStreamCombination@62364aeb",
+          "android.hardware.camera2.params.MandatoryStreamCombination@6a3a197",
+          "android.hardware.camera2.params.MandatoryStreamCombination@34c24d46",
+          "android.hardware.camera2.params.MandatoryStreamCombination@a6dd1db",
+          "android.hardware.camera2.params.MandatoryStreamCombination@d7a0d329",
+          "android.hardware.camera2.params.MandatoryStreamCombination@ff02587",
+          "android.hardware.camera2.params.MandatoryStreamCombination@a8921551",
+          "android.hardware.camera2.params.MandatoryStreamCombination@24745542",
+          "android.hardware.camera2.params.MandatoryStreamCombination@70880ab3",
+          "android.hardware.camera2.params.MandatoryStreamCombination@2036b63",
+          "android.hardware.camera2.params.MandatoryStreamCombination@c8f24b96",
+          "android.hardware.camera2.params.MandatoryStreamCombination@48580ecb",
+          "android.hardware.camera2.params.MandatoryStreamCombination@e9836cf8",
+          "android.hardware.camera2.params.MandatoryStreamCombination@f0946ce1",
+          "android.hardware.camera2.params.MandatoryStreamCombination@2a853bd8",
+          "android.hardware.camera2.params.MandatoryStreamCombination@85cea336",
+          "android.hardware.camera2.params.MandatoryStreamCombination@895f360b",
+          "android.hardware.camera2.params.MandatoryStreamCombination@53be6132",
+          "android.hardware.camera2.params.MandatoryStreamCombination@89f3be77",
+          "android.hardware.camera2.params.MandatoryStreamCombination@3fed875c",
+          "android.hardware.camera2.params.MandatoryStreamCombination@30b261ff",
+          "android.hardware.camera2.params.MandatoryStreamCombination@4ed5d5e1",
+          "android.hardware.camera2.params.MandatoryStreamCombination@fa210c32",
+          "android.hardware.camera2.params.MandatoryStreamCombination@e76e2edd",
+          "android.hardware.camera2.params.MandatoryStreamCombination@c4e0b75c",
+          "android.hardware.camera2.params.MandatoryStreamCombination@26273f50",
+          "android.hardware.camera2.params.MandatoryStreamCombination@4896dd79",
+          "android.hardware.camera2.params.MandatoryStreamCombination@249d30f1",
+          "android.hardware.camera2.params.MandatoryStreamCombination@ac41dea2",
+          "android.hardware.camera2.params.MandatoryStreamCombination@a02ac376"
+        ],
+        "android.scaler.mandatoryTenBitOutputStreamCombinations": [
+          "android.hardware.camera2.params.MandatoryStreamCombination@db80c726",
+          "android.hardware.camera2.params.MandatoryStreamCombination@9197a197",
+          "android.hardware.camera2.params.MandatoryStreamCombination@c0515b7a",
+          "android.hardware.camera2.params.MandatoryStreamCombination@79822ce4",
+          "android.hardware.camera2.params.MandatoryStreamCombination@7f03f3a1",
+          "android.hardware.camera2.params.MandatoryStreamCombination@24745542",
+          "android.hardware.camera2.params.MandatoryStreamCombination@9dfc29ce",
+          "android.hardware.camera2.params.MandatoryStreamCombination@91d12c16"
+        ],
+        "android.scaler.mandatoryUseCaseStreamCombinations": [
+          "android.hardware.camera2.params.MandatoryStreamCombination@19fa71fb",
+          "android.hardware.camera2.params.MandatoryStreamCombination@d5dd7ea3",
+          "android.hardware.camera2.params.MandatoryStreamCombination@e5e1fd37",
+          "android.hardware.camera2.params.MandatoryStreamCombination@876ca383",
+          "android.hardware.camera2.params.MandatoryStreamCombination@f757c22f",
+          "android.hardware.camera2.params.MandatoryStreamCombination@23eb7bad",
+          "android.hardware.camera2.params.MandatoryStreamCombination@d1664c47",
+          "android.hardware.camera2.params.MandatoryStreamCombination@c1dbba9d",
+          "android.hardware.camera2.params.MandatoryStreamCombination@8ae2bf73",
+          "android.hardware.camera2.params.MandatoryStreamCombination@df650995",
+          "android.hardware.camera2.params.MandatoryStreamCombination@fd83ede8",
+          "android.hardware.camera2.params.MandatoryStreamCombination@6f046bc2",
+          "android.hardware.camera2.params.MandatoryStreamCombination@ea70f965",
+          "android.hardware.camera2.params.MandatoryStreamCombination@2deb7529",
+          "android.hardware.camera2.params.MandatoryStreamCombination@2e3610c9",
+          "android.hardware.camera2.params.MandatoryStreamCombination@b0f531b1",
+          "android.hardware.camera2.params.MandatoryStreamCombination@6eec291f",
+          "android.hardware.camera2.params.MandatoryStreamCombination@243f7ba8",
+          "android.hardware.camera2.params.MandatoryStreamCombination@76102b02",
+          "android.hardware.camera2.params.MandatoryStreamCombination@8595a3de",
+          "android.hardware.camera2.params.MandatoryStreamCombination@b699272c",
+          "android.hardware.camera2.params.MandatoryStreamCombination@4bfdae1a",
+          "android.hardware.camera2.params.MandatoryStreamCombination@ad7a66d1",
+          "android.hardware.camera2.params.MandatoryStreamCombination@9a960393",
+          "android.hardware.camera2.params.MandatoryStreamCombination@6b8cfcd"
+        ],
+        "android.scaler.streamConfigurationMap": "StreamConfiguration(Outputs([w:3440, h:2448, format:RAW_SENSOR(32), min_duration:33333333, stall:0], [w:3264, h:2448, format:JPEG(256), min_duration:33333333, stall:0], [w:3264, h:1836, format:JPEG(256), min_duration:33333333, stall:0], [w:2560, h:1920, format:JPEG(256), min_duration:33333333, stall:0], [w:2688, h:1512, format:JPEG(256), min_duration:33333333, stall:0], [w:1920, h:1920, format:JPEG(256), min_duration:33333333, stall:0], [w:2560, h:1280, format:JPEG(256), min_duration:33333333, stall:0], [w:2048, h:1536, format:JPEG(256), min_duration:33333333, stall:0], [w:1920, h:1440, format:JPEG(256), min_duration:33333333, stall:0], [w:1920, h:1080, format:JPEG(256), min_duration:16666666, stall:0], [w:3440, h:2448, format:JPEG(256), min_duration:33333333, stall:0], [w:3264, h:2448, format:PRIVATE(34), min_duration:33333333, stall:0], [w:3264, h:1836, format:PRIVATE(34), min_duration:33333333, stall:0], [w:2560, h:1920, format:PRIVATE(34), min_duration:33333333, stall:0], [w:2688, h:1512, format:PRIVATE(34), min_duration:33333333, stall:0], [w:1920, h:1920, format:PRIVATE(34), min_duration:33333333, stall:0], [w:2560, h:1280, format:PRIVATE(34), min_duration:33333333, stall:0], [w:2048, h:1536, format:PRIVATE(34), min_duration:33333333, stall:0], [w:1920, h:1440, format:PRIVATE(34), min_duration:33333333, stall:0], [w:1920, h:1080, format:PRIVATE(34), min_duration:16666666, stall:0], [w:1600, h:1200, format:PRIVATE(34), min_duration:33333333, stall:0], [w:1920, h:960, format:PRIVATE(34), min_duration:33333333, stall:0], [w:1792, h:1008, format:PRIVATE(34), min_duration:16666666, stall:0], [w:1440, h:1080, format:PRIVATE(34), min_duration:33333333, stall:0], [w:1344, h:1008, format:PRIVATE(34), min_duration:33333333, stall:0], [w:1280, h:960, format:PRIVATE(34), min_duration:33333333, stall:0], [w:1080, h:1080, format:PRIVATE(34), min_duration:33333333, stall:0], [w:1280, h:720, format:PRIVATE(34), min_duration:16666666, stall:0], [w:1024, h:768, format:PRIVATE(34), min_duration:33333333, stall:0], [w:1024, h:576, format:PRIVATE(34), min_duration:16666666, stall:0], [w:800, h:600, format:PRIVATE(34), min_duration:33333333, stall:0], [w:720, h:480, format:PRIVATE(34), min_duration:33333333, stall:0], [w:640, h:480, format:PRIVATE(34), min_duration:33333333, stall:0], [w:640, h:360, format:PRIVATE(34), min_duration:16666666, stall:0], [w:352, h:288, format:PRIVATE(34), min_duration:33333333, stall:0], [w:320, h:240, format:PRIVATE(34), min_duration:33333333, stall:0], [w:176, h:144, format:PRIVATE(34), min_duration:33333333, stall:0], [w:3440, h:2448, format:PRIVATE(34), min_duration:33333333, stall:0], [w:3264, h:2448, format:YUV_420_888(35), min_duration:33333333, stall:0], [w:3264, h:1836, format:YUV_420_888(35), min_duration:33333333, stall:0], [w:2560, h:1920, format:YUV_420_888(35), min_duration:33333333, stall:0], [w:2688, h:1512, format:YUV_420_888(35), min_duration:33333333, stall:0], [w:1920, h:1920, format:YUV_420_888(35), min_duration:33333333, stall:0], [w:2560, h:1280, format:YUV_420_888(35), min_duration:33333333, stall:0], [w:2048, h:1536, format:YUV_420_888(35), min_duration:33333333, stall:0], [w:1920, h:1440, format:YUV_420_888(35), min_duration:33333333, stall:0], [w:1920, h:1080, format:YUV_420_888(35), min_duration:16666666, stall:0], [w:1600, h:1200, format:YUV_420_888(35), min_duration:33333333, stall:0], [w:1920, h:960, format:YUV_420_888(35), min_duration:33333333, stall:0], [w:1792, h:1008, format:YUV_420_888(35), min_duration:16666666, stall:0], [w:1440, h:1080, format:YUV_420_888(35), min_duration:33333333, stall:0], [w:1344, h:1008, format:YUV_420_888(35), min_duration:33333333, stall:0], [w:1280, h:960, format:YUV_420_888(35), min_duration:33333333, stall:0], [w:1080, h:1080, format:YUV_420_888(35), min_duration:33333333, stall:0], [w:1280, h:720, format:YUV_420_888(35), min_duration:16666666, stall:0], [w:1024, h:768, format:YUV_420_888(35), min_duration:33333333, stall:0], [w:1024, h:576, format:YUV_420_888(35), min_duration:16666666, stall:0], [w:800, h:600, format:YUV_420_888(35), min_duration:33333333, stall:0], [w:720, h:480, format:YUV_420_888(35), min_duration:33333333, stall:0], [w:640, h:480, format:YUV_420_888(35), min_duration:33333333, stall:0], [w:640, h:360, format:YUV_420_888(35), min_duration:16666666, stall:0], [w:352, h:288, format:YUV_420_888(35), min_duration:33333333, stall:0], [w:320, h:240, format:YUV_420_888(35), min_duration:33333333, stall:0], [w:176, h:144, format:YUV_420_888(35), min_duration:33333333, stall:0], [w:3440, h:2448, format:YUV_420_888(35), min_duration:33333333, stall:0], [w:3440, h:2448, format:RAW10(37), min_duration:33333333, stall:0], [w:3264, h:2448, format:UNKNOWN(54), min_duration:33333333, stall:0], [w:3264, h:1836, format:UNKNOWN(54), min_duration:33333333, stall:0], [w:2560, h:1920, format:UNKNOWN(54), min_duration:33333333, stall:0], [w:2688, h:1512, format:UNKNOWN(54), min_duration:33333333, stall:0], [w:1920, h:1920, format:UNKNOWN(54), min_duration:33333333, stall:0], [w:2560, h:1280, format:UNKNOWN(54), min_duration:33333333, stall:0], [w:2048, h:1536, format:UNKNOWN(54), min_duration:33333333, stall:0], [w:1920, h:1440, format:UNKNOWN(54), min_duration:33333333, stall:0], [w:1920, h:1080, format:UNKNOWN(54), min_duration:16666666, stall:0], [w:1600, h:1200, format:UNKNOWN(54), min_duration:33333333, stall:0], [w:1920, h:960, format:UNKNOWN(54), min_duration:33333333, stall:0], [w:1792, h:1008, format:UNKNOWN(54), min_duration:16666666, stall:0], [w:1440, h:1080, format:UNKNOWN(54), min_duration:33333333, stall:0], [w:1344, h:1008, format:UNKNOWN(54), min_duration:33333333, stall:0], [w:1280, h:960, format:UNKNOWN(54), min_duration:33333333, stall:0], [w:1080, h:1080, format:UNKNOWN(54), min_duration:33333333, stall:0], [w:1280, h:720, format:UNKNOWN(54), min_duration:16666666, stall:0], [w:1024, h:768, format:UNKNOWN(54), min_duration:33333333, stall:0], [w:1024, h:576, format:UNKNOWN(54), min_duration:16666666, stall:0], [w:800, h:600, format:UNKNOWN(54), min_duration:33333333, stall:0], [w:720, h:480, format:UNKNOWN(54), min_duration:33333333, stall:0], [w:640, h:480, format:UNKNOWN(54), min_duration:33333333, stall:0], [w:640, h:360, format:UNKNOWN(54), min_duration:16666666, stall:0], [w:352, h:288, format:UNKNOWN(54), min_duration:33333333, stall:0], [w:320, h:240, format:UNKNOWN(54), min_duration:33333333, stall:0], [w:176, h:144, format:UNKNOWN(54), min_duration:33333333, stall:0], [w:3440, h:2448, format:UNKNOWN(54), min_duration:33333333, stall:0]), HighResolutionOutputs(), Inputs(), ValidOutputFormatsForInput(), HighSpeedVideoConfigurations())",
+        "android.sensor.availableTestPatternModes": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "android.sensor.blackLevelPattern": "BlackLevelPattern([64, 64], [64, 64])",
+        "android.sensor.calibrationTransform1": "ColorSpaceTransform([1/1, 0/1, 0/1], [0/1, 1/1, 0/1], [0/1, 0/1, 1/1])",
+        "android.sensor.calibrationTransform2": "ColorSpaceTransform([1/1, 0/1, 0/1], [0/1, 1/1, 0/1], [0/1, 0/1, 1/1])",
+        "android.sensor.colorTransform1": "ColorSpaceTransform([13568/10000, -6439/10000, -1651/10000], [-5265/10000, 15665/10000, 333/10000], [-178/10000, 2485/10000, 8075/10000])",
+        "android.sensor.colorTransform2": "ColorSpaceTransform([7298/10000, -1674/10000, -645/10000], [-6702/10000, 15369/10000, 919/10000], [-2837/10000, 4995/10000, 5432/10000])",
+        "android.sensor.forwardMatrix1": "ColorSpaceTransform([5646/10000, 1635/10000, 2362/10000], [1711/10000, 7678/10000, 610/10000], [-1194/10000, -5858/10000, 15302/10000])",
+        "android.sensor.forwardMatrix2": "ColorSpaceTransform([7377/10000, 1679/10000, 587/10000], [3170/10000, 7445/10000, -614/10000], [658/10000, -4549/10000, 12143/10000])",
+        "android.sensor.info.activeArraySize": "Rect(0, 0 - 3440, 2448)",
+        "android.sensor.info.colorFilterArrangement": 1,
+        "android.sensor.info.exposureTimeRange": "[46377, 1000003181]",
+        "android.sensor.info.lensShadingApplied": false,
+        "android.sensor.info.maxFrameDuration": 1000003181,
+        "android.sensor.info.physicalSize": "4.1968x2.98656",
+        "android.sensor.info.pixelArraySize": "3440x2448",
+        "android.sensor.info.preCorrectionActiveArraySize": "Rect(0, 0 - 3440, 2448)",
+        "android.sensor.info.sensitivityRange": "[51, 4873]",
+        "android.sensor.info.timestampSource": 1,
+        "android.sensor.info.whiteLevel": 1023,
+        "android.sensor.maxAnalogSensitivity": 812,
+        "android.sensor.orientation": 270,
+        "android.sensor.readoutTimestamp": 0,
+        "android.sensor.referenceIlluminant1": 17,
+        "android.sensor.referenceIlluminant2": 21,
+        "android.shading.availableModes": [
+          0,
+          1,
+          2
+        ],
+        "android.statistics.info.availableFaceDetectModes": [
+          0,
+          1,
+          2
+        ],
+        "android.statistics.info.availableHotPixelMapModes": "[Z@2fa2cff",
+        "android.statistics.info.availableLensShadingMapModes": [
+          0,
+          1
+        ],
+        "android.statistics.info.availableOisDataModes": [
+          0
+        ],
+        "android.statistics.info.maxFaceCount": 10,
+        "android.sync.maxLatency": 0,
+        "android.tonemap.availableToneMapModes": [
+          0,
+          1,
+          2
+        ],
+        "android.tonemap.maxCurvePoints": 65,
+        "com.google.hal.logicalcamera.DefaultPhysicalCamId": [
+          8
+        ],
+        "com.google.internal.hdrplus.PayloadFrames": [
+          1
+        ],
+        "com.google.pixel.experimental2018.faceLandmark.availableIds": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "com.google.pixel.experimental2020.faceAttribute.availableIds": [
+          0,
+          1
+        ]
+      },
+      "request_controls": [
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "android.blackLevel.lock"
+        },
+        {
+          "adapter_route": "settings.processing.aberration",
+          "exposed": true,
+          "key": "android.colorCorrection.aberrationMode"
+        },
+        {
+          "adapter_route": "settings.white_balance.Manual.gains_x1000, when advertised",
+          "exposed": true,
+          "key": "android.colorCorrection.gains"
+        },
+        {
+          "adapter_route": "manual WB transform mode, when advertised",
+          "exposed": true,
+          "key": "android.colorCorrection.mode"
+        },
+        {
+          "adapter_route": "settings.white_balance.Manual.transform_millionths, when advertised",
+          "exposed": true,
+          "key": "android.colorCorrection.transform"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "android.control.aeAntibandingMode"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "android.control.aeExposureCompensation"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "android.control.aeLock"
+        },
+        {
+          "adapter_route": "fixed off for acquisition; on during autofocus",
+          "exposed": true,
+          "key": "android.control.aeMode"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "android.control.aePrecaptureTrigger"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "android.control.aeRegions"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "android.control.aeTargetFpsRange"
+        },
+        {
+          "adapter_route": "manual off; autofocus_center operation uses auto",
+          "exposed": true,
+          "key": "android.control.afMode"
+        },
+        {
+          "adapter_route": "autofocus_center operation (central region)",
+          "exposed": true,
+          "key": "android.control.afRegions"
+        },
+        {
+          "adapter_route": "autofocus_center operation",
+          "exposed": true,
+          "key": "android.control.afTrigger"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "android.control.awbLock"
+        },
+        {
+          "adapter_route": "settings.white_balance.Mode",
+          "exposed": true,
+          "key": "android.control.awbMode"
+        },
+        {
+          "adapter_route": "adapter-managed preview/still intent",
+          "exposed": true,
+          "key": "android.control.captureIntent"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "android.control.effectMode"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "android.control.enableZsl"
+        },
+        {
+          "adapter_route": "adapter-managed AUTO",
+          "exposed": true,
+          "key": "android.control.mode"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "android.control.postRawSensitivityBoost"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "android.control.sceneMode"
+        },
+        {
+          "adapter_route": "settings.eis",
+          "exposed": true,
+          "key": "android.control.videoStabilizationMode"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "android.control.zoomMethod"
+        },
+        {
+          "adapter_route": "settings.zoom_x1000",
+          "exposed": true,
+          "key": "android.control.zoomRatio"
+        },
+        {
+          "adapter_route": "settings.processing.distortion",
+          "exposed": true,
+          "key": "android.distortionCorrection.mode"
+        },
+        {
+          "adapter_route": "settings.processing.edge",
+          "exposed": true,
+          "key": "android.edge.mode"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "android.flash.mode"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "android.flash.strengthLevel"
+        },
+        {
+          "adapter_route": "settings.processing.hot_pixel",
+          "exposed": true,
+          "key": "android.hotPixel.mode"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "android.jpeg.gpsLocation"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "android.jpeg.orientation"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "android.jpeg.quality"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "android.jpeg.thumbnailQuality"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "android.jpeg.thumbnailSize"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "android.lens.aperture"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "android.lens.filterDensity"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "android.lens.focalLength"
+        },
+        {
+          "adapter_route": "settings.focus.Manual.millidiopters",
+          "exposed": true,
+          "key": "android.lens.focusDistance"
+        },
+        {
+          "adapter_route": "settings.ois",
+          "exposed": true,
+          "key": "android.lens.opticalStabilizationMode"
+        },
+        {
+          "adapter_route": "settings.processing.noise_reduction",
+          "exposed": true,
+          "key": "android.noiseReduction.mode"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "android.reprocess.effectiveExposureFactor"
+        },
+        {
+          "adapter_route": "settings.crop",
+          "exposed": true,
+          "key": "android.scaler.cropRegion"
+        },
+        {
+          "adapter_route": "settings.exposure_ns",
+          "exposed": true,
+          "key": "android.sensor.exposureTime"
+        },
+        {
+          "adapter_route": "settings.frame_duration_ns",
+          "exposed": true,
+          "key": "android.sensor.frameDuration"
+        },
+        {
+          "adapter_route": "settings.sensitivity",
+          "exposed": true,
+          "key": "android.sensor.sensitivity"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "android.sensor.testPatternMode"
+        },
+        {
+          "adapter_route": "settings.processing.shading",
+          "exposed": true,
+          "key": "android.shading.mode"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "android.statistics.faceDetectMode"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "android.statistics.hotPixelMapMode"
+        },
+        {
+          "adapter_route": "adapter requests ON when advertised",
+          "exposed": true,
+          "key": "android.statistics.lensShadingMapMode"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "android.statistics.oisDataMode"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "android.tonemap.curve"
+        },
+        {
+          "adapter_route": "settings.processing.tonemap (fast/high_quality)",
+          "exposed": true,
+          "key": "android.tonemap.mode"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "com.google.pixel.experimental2020.eisMode"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "com.google.pixel.experimental2021.dynamicProfilingEnabled"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "com.google.pixel.experimental2021.motionDeblur.enabled"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "com.google.pixel.experimental2021.computerVisionMode"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "com.google.pixel.experimental2021.lookaheadEisMode"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "com.google.internal.videoTelephonyCallMode"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "com.google.internal.IsCameraApp1P"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "com.google.pixel.experimental2024.IsCameraExtensions"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "com.google.internal.SensorBinningMode"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "com.google.pixel.experimental2021.faceAuthUseCase"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "com.google.pixel.experimental2021.captureStatus"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "com.google.pixel.experimental2023.sobekEnable"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "com.google.pixel.experimental2023.project11Enable"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "com.google.pixel.experimental2023.tofIntegrationTime"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "com.google.pixel.experimental2023.tofSampleRate"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "com.google.pixel.experimental2023.tofZoneMode"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "com.google.pixel.experimental2023.rangingDistanceEnabled"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "com.google.pixel.experimental2023.rangingDistance"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "com.google.pixel.experimental2022.sensorSyncMode"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "com.google.internal.proxyCameraId"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "com.google.internal.proxyCameraToken"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "com.google.internal.proxyGraphFailureReason"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "com.google.internal.proxyAeExposureCompensation"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "com.google.internal.proxyManualAwbControlFactors"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "com.google.internal.proxyManualAwbControlMode"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "com.google.pixel.experimental2024.isCameraLaunch"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "com.google.pixel.experimental2025.postProcZoom.targetZoomRatio"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "com.google.internal.proxyCameraMirrorMode"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "com.google.pixel.experimental2016.3a.hybrid_ae_enable"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "com.google.pixel.experimental2017.request.disable_hdrplus"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "com.google.internal.ProcessingMode"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "com.google.internal.thermal_throttling"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "com.google.internal.OutputIntent"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "com.google.pixel.experimental2019.SensorModeFullFov"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "com.google.internal.Video60to30FPSThermalThrottle"
+        },
+        {
+          "adapter_route": null,
+          "exposed": false,
+          "key": "com.google.internal.VideoFpsThrottle"
+        }
+      ]
+    }
+  ],
+  "identity": "Google Pixel 8 Pro / Android 17",
+  "schema_version": 1
+}

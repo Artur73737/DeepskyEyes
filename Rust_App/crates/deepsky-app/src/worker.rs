@@ -561,8 +561,11 @@ impl Worker {
 
     fn options(&self, frames: u32) -> AcquisitionOptions {
         AcquisitionOptions {
+            strict_results: false,
+            controls: Default::default(),
             project: self.project.clone(),
             out_dir: self.destination.clone(),
+            camera_id: None,
             calibration: frame_kind_to_session(self.frame_kind),
             frames,
             exposure_ns: self.exposure_ns,

@@ -24,6 +24,17 @@ import com.deepskyeyes.android.service.CameraService
 import com.deepskyeyes.android.ui.CameraPanel
 
 class MainActivity : ComponentActivity() {
+    // ADB can bring this activity into the foreground and request bridge startup.
+    // Android camera permission and foreground-service restrictions still apply.
+    override fun onResume() {
+        super.onResume()
+        if (intent.action == "com.deepskyeyes.android.START_BRIDGE") {
+            intent.action = Intent.ACTION_MAIN
+            if (checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) startBridge()
+            else permissions.launch(arrayOf(Manifest.permission.CAMERA, Manifest.permission.POST_NOTIFICATIONS))
+        }
+    }
+
     private val exportCapture = registerForActivityResult(ActivityResultContracts.CreateDocument("application/octet-stream")) { uri ->
         val file = BridgeStatus.state.value.lastFile
         if(uri != null && file != null) Thread {

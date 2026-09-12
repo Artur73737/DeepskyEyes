@@ -28,7 +28,13 @@ class CapabilityDiscovery(private val manager: CameraManager) {
         fun collect(map: StreamConfigurationMap?, mode: String) {
             if (map == null) return
             if (raw) for (size in map.getOutputSizes(ImageFormat.RAW_SENSOR).orEmpty()) {
-                for (format in listOf("Dng", "Raw16Le")) streams += stream(size.width, size.height, format, mode,
+                val pre = if (mode == "MaximumResolution") c[C.SENSOR_INFO_PRE_CORRECTION_ACTIVE_ARRAY_SIZE_MAXIMUM_RESOLUTION] else c[C.SENSOR_INFO_PRE_CORRECTION_ACTIVE_ARRAY_SIZE]
+                val pixel = if (mode == "MaximumResolution") c[C.SENSOR_INFO_PIXEL_ARRAY_SIZE_MAXIMUM_RESOLUTION] else c[C.SENSOR_INFO_PIXEL_ARRAY_SIZE]
+                // DngCreator requires a full sensor array. Smaller HAL RAW outputs
+                // remain available as packed Raw16Le, not falsely advertised DNGs.
+                val dng = (pre?.width() == size.width && pre.height() == size.height) ||
+                    (pixel?.width == size.width && pixel.height == size.height)
+                for (format in if(dng) listOf("Dng", "Raw16Le") else listOf("Raw16Le")) streams += stream(size.width, size.height, format, mode,
                     map.getOutputMinFrameDuration(ImageFormat.RAW_SENSOR, size), map.getOutputStallDuration(ImageFormat.RAW_SENSOR, size))
             }
             for (size in map.getOutputSizes(ImageFormat.JPEG).orEmpty()) streams += stream(size.width, size.height, "Jpeg", mode,
@@ -72,6 +78,7 @@ class CapabilityDiscovery(private val manager: CameraManager) {
             "focus_millidiopters" to focus?.let { range(0,(it * 1000).toLong()) },
             "focus_calibration" to c[C.LENS_INFO_FOCUS_DISTANCE_CALIBRATION]?.toString(),
             "af_modes" to arr(af.filter { it == C.CONTROL_AF_MODE_OFF }.map { "off" }),
+            "autofocus_center_supported" to (C.CONTROL_AF_MODE_AUTO in af && focus != null && (c[C.CONTROL_MAX_REGIONS_AF] ?: 0) > 0 && previews.any { it.getInt("width") <= 640 }),
             "focus_lock" to (C.CONTROL_AF_MODE_OFF in af && focus != null),
             "zoom_x1000" to zoom?.let { range(kotlin.math.ceil(it.lower * 1000.0).toLong(),kotlin.math.floor(it.upper * 1000.0).toLong()) },
             "active_array" to active?.let { obj("x" to it.left,"y" to it.top,"width" to it.width(),"height" to it.height()) },
@@ -92,19 +99,58 @@ class CapabilityDiscovery(private val manager: CameraManager) {
                 val value = c.get(key as C.Key<Any>)
                 keys.put(key.name, describeValue(value))
             }
-            obj("camera_id" to id,"characteristics" to keys,"capabilities" to describe(id))
+            obj("camera_id" to id,"characteristics" to keys,"capabilities" to describe(id),
+                "request_controls" to arr(c.availableCaptureRequestKeys.orEmpty().map { key ->
+                    val route = REQUEST_ROUTES[key.name]
+                    obj("key" to key.name,"adapter_route" to route,"exposed" to (route != null))
+                }),
+                "available_result_keys" to arr(c.availableCaptureResultKeys.orEmpty().map { it.name }))
         }))
     private fun describeValue(value: Any?): Any = when(value) {
         null -> JSONObject.NULL
+        is android.util.Rational -> obj("numerator" to value.numerator,"denominator" to value.denominator)
         is IntArray -> JSONArray(value.toList())
         is LongArray -> JSONArray(value.toList())
-        is FloatArray -> JSONArray(value.toList())
+        is FloatArray -> JSONArray(value.map { describeValue(it) })
         is ByteArray -> JSONArray(value.map { it.toInt() and 255 })
         is Array<*> -> JSONArray(value.map { describeValue(it) })
+        is Float -> if(value.isFinite()) value else value.toString()
+        is Double -> if(value.isFinite()) value else value.toString()
         is Number, is Boolean, is String -> value
         else -> value.toString()
     }
     companion object {
+        // Inventory is explicit: unknown/vendor keys remain visible as not exposed.
+        // A route describes code support, not proof that the HAL honors a value.
+        val REQUEST_ROUTES = mapOf(
+            "android.sensor.exposureTime" to "settings.exposure_ns",
+            "android.sensor.sensitivity" to "settings.sensitivity",
+            "android.sensor.frameDuration" to "settings.frame_duration_ns",
+            "android.sensor.pixelMode" to "settings.stream.pixel_mode",
+            "android.lens.focusDistance" to "settings.focus.Manual.millidiopters",
+            "android.control.afMode" to "manual off; autofocus_center operation uses auto",
+            "android.control.afTrigger" to "autofocus_center operation",
+            "android.control.afRegions" to "autofocus_center operation (central region)",
+            "android.control.aeMode" to "fixed off for acquisition; on during autofocus",
+            "android.control.mode" to "adapter-managed AUTO",
+            "android.control.captureIntent" to "adapter-managed preview/still intent",
+            "android.control.zoomRatio" to "settings.zoom_x1000",
+            "android.scaler.cropRegion" to "settings.crop",
+            "android.control.awbMode" to "settings.white_balance.Mode",
+            "android.colorCorrection.mode" to "manual WB transform mode, when advertised",
+            "android.colorCorrection.gains" to "settings.white_balance.Manual.gains_x1000, when advertised",
+            "android.colorCorrection.transform" to "settings.white_balance.Manual.transform_millionths, when advertised",
+            "android.edge.mode" to "settings.processing.edge",
+            "android.noiseReduction.mode" to "settings.processing.noise_reduction",
+            "android.hotPixel.mode" to "settings.processing.hot_pixel",
+            "android.shading.mode" to "settings.processing.shading",
+            "android.colorCorrection.aberrationMode" to "settings.processing.aberration",
+            "android.distortionCorrection.mode" to "settings.processing.distortion",
+            "android.tonemap.mode" to "settings.processing.tonemap (fast/high_quality)",
+            "android.lens.opticalStabilizationMode" to "settings.ois",
+            "android.control.videoStabilizationMode" to "settings.eis",
+            "android.statistics.lensShadingMapMode" to "adapter requests ON when advertised"
+        )
         fun range(min: Long,max: Long) = obj("min" to min,"max" to max)
         fun stream(w: Int,h: Int,format: String,mode: String,min: Long,stall: Long) =
             obj("width" to w,"height" to h,"format" to format,"pixel_mode" to mode,"binned" to null,

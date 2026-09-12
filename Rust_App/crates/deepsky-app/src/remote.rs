@@ -8,6 +8,15 @@ use serde_json::{json, Value};
 
 const BINARY_CAPTURE: u16 = 4;
 fn error(message: impl Into<String>) -> CameraError { CameraError::new(ErrorCode::Io, message) }
+fn reply_result(reply: Reply) -> CameraResult<Value> {
+    match reply {
+        Reply::Ok {result} => Ok(result),
+        Reply::Error {code,message} => {
+            let parsed = serde_json::from_value::<ErrorCode>(Value::String(code.clone())).unwrap_or(ErrorCode::Io);
+            Err(CameraError::new(parsed,format!("{code}: {message}")))
+        }
+    }
+}
 
 pub struct RemoteCameraBackend {
     transport: Box<dyn Transport + Send>,
@@ -49,8 +58,8 @@ impl RemoteCameraBackend {
     pub fn call<R: DeserializeOwned>(&mut self, method: &str, params: Value) -> CameraResult<R> {
         let packet=self.exchange(method,params)?;
         if packet.header.message_type!=rpc::RESPONSE { return Err(error("unexpected response type")); }
-        let reply:Reply=codec::decode(&packet.payload).map_err(|e|error(e.to_string()))?;
-        serde_json::from_value(reply.result().map_err(error)?).map_err(|e|error(e.to_string()))
+        let reply:Reply=serde_json::from_slice(&packet.payload).map_err(|e|error(format!("RPC {method} JSON: {e}")))?;
+        serde_json::from_value(reply_result(reply)?).map_err(|e|error(e.to_string()))
     }
 }
 impl CameraBackend for RemoteCameraBackend {
@@ -63,7 +72,8 @@ impl CameraBackend for RemoteCameraBackend {
         let packet=self.exchange("capture",Value::Null)?;
         if packet.header.message_type==rpc::RESPONSE {
             let reply:Reply=codec::decode(&packet.payload).map_err(|e|error(e.to_string()))?;
-            return Err(error(reply.result().err().unwrap_or_else(||"expected binary capture".into())));
+            reply_result(reply)?;
+            return Err(error("expected binary capture"));
         }
         if packet.header.message_type!=BINARY_CAPTURE || packet.payload.len()<4 { return Err(error("invalid capture packet")); }
         let n=u32::from_le_bytes(packet.payload[..4].try_into().unwrap()) as usize;
@@ -76,7 +86,8 @@ impl CameraBackend for RemoteCameraBackend {
         let packet=self.exchange("preview_binary",Value::Null)?;
         if packet.header.message_type==rpc::RESPONSE {
             let reply:Reply=codec::decode(&packet.payload).map_err(|e|error(e.to_string()))?;
-            return Err(error(reply.result().err().unwrap_or_else(||"expected binary preview".into())));
+            reply_result(reply)?;
+            return Err(error("expected binary preview"));
         }
         if packet.header.message_type!=5 || packet.payload.len()<4 { return Err(error("invalid preview packet")); }
         let n=u32::from_le_bytes(packet.payload[..4].try_into().unwrap()) as usize;
@@ -88,6 +99,12 @@ impl CameraBackend for RemoteCameraBackend {
         Ok(frame)
     }
     fn thermal(&mut self)->CameraResult<ThermalStatus> { self.call("thermal",Value::Null) }
+    fn diagnostic(&mut self, method:&str)->CameraResult<Value> {
+        if !["status","ping","capability_dump"].contains(&method) {
+            return Err(CameraError::new(ErrorCode::Unsupported,"unknown diagnostic"));
+        }
+        self.call(method,Value::Null)
+    }
     fn autofocus_center(&mut self)->CameraResult<u64> { self.call("autofocus_center",Value::Null) }
     fn close(&mut self)->CameraResult<()> { self.call("close",Value::Null) }
 }

@@ -88,7 +88,10 @@ class BridgeServer(private val engine: CameraEngine, private val thermal: () -> 
                 val data = obj("status" to "ok","result" to result).toString().toByteArray(Charsets.UTF_8)
                 FrameCodec.write(output,2,frame.requestId,outgoing,data)
                 BridgeStatus.update { it.copy(txBytes = it.txBytes+data.size+58) }
-            } catch(e: Exception) {
+            } catch(e: Throwable) {
+                // A request must never kill the bridge: native camera code can throw
+                // AssertionError (e.g. DngCreator size checks). Map everything to an
+                // explicit error frame so the desktop gets a code, not a dead socket.
                 if(socket.isClosed) throw e
                 val code = (e as? CameraFault)?.code ?: if(e is IllegalArgumentException || e is org.json.JSONException) "InvalidRequest" else "Io"
                 val message = e.message ?: e.javaClass.simpleName

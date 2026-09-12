@@ -42,6 +42,7 @@ pub struct CameraCapabilities {
     /// Fixed point diopters, 1000 = 1 diopter. None means unknown, not fixed focus.
     pub focus_millidiopters: Option<ValueRange>, pub focus_calibration: Option<String>,
     pub af_modes: Vec<String>, pub focus_lock: Option<bool>,
+    #[serde(default)] pub autofocus_center_supported: Option<bool>,
     pub zoom_x1000: Option<ValueRange>, pub active_array: Option<CropRect>,
     pub crop_supported: Option<bool>, pub streams: Vec<StreamConfiguration>, pub preview_streams: Vec<StreamConfiguration>,
     pub wb_modes: Vec<String>, pub wb_kelvin: Option<ValueRange>, pub wb_tint: Option<ValueRange>,
@@ -56,6 +57,7 @@ pub enum FocusRequest { Manual { millidiopters: u64, locked: bool }, Auto { mode
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum WhiteBalanceRequest { Mode(String), Temperature { kelvin: u64, tint: Option<u64> }, Manual { gains_x1000: [u64; 4], transform_millionths: [i32; 9] } }
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct CaptureSettings {
     pub exposure_ns: Option<u64>, pub sensitivity: Option<u64>, pub frame_duration_ns: Option<u64>,
     pub focus: Option<FocusRequest>, pub zoom_x1000: Option<u64>, pub crop: Option<CropRect>,
@@ -63,6 +65,7 @@ pub struct CaptureSettings {
     pub processing: BTreeMap<String, String>, pub ois: Option<String>, pub eis: Option<String>,
 }
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct CaptureRequest { pub request_id: u64, pub selection: CameraSelection, pub settings: CaptureSettings }
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ValidationPolicy { Reject, Clamp }

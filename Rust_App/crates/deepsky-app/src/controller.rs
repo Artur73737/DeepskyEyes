@@ -97,6 +97,128 @@ pub(crate) fn pick_camera(caps: &[CameraCapabilities]) -> Result<&CameraCapabili
         .ok_or_else(|| config("device announced zero cameras"))
 }
 
+/// Camera selection shared by the CLI and the desktop worker paths.
+/// An explicit ID must be announced; without one the first hardware camera wins.
+/// Never guesses: unknown IDs fail instead of silently substituting another lens.
+ pub fn select_camera<'a>(caps: &'a [CameraCapabilities], id: Option<&str>) -> Result<&'a CameraCapabilities, ControllerError> {
+    match id {
+        Some(want) => caps
+            .iter()
+            .find(|c| c.camera_id == want)
+            .ok_or_else(|| config(format!("camera '{want}' not announced"))),
+        None => pick_camera(caps),
+    }
+}
+
+/// Parse the CLI zoom flags into the fixed-point `zoom_x1000` control.
+/// `--zoom 2.0` is a human ratio, `--zoom-x1000 2000` the exact device value.
+/// Both at once is ambiguous and rejected; device-range checks stay in
+/// `validate_request` with the Reject policy so out-of-range zooms fail loudly.
+ pub fn parse_zoom(zoom: Option<&str>, zoom_x1000: Option<&str>) -> Result<Option<u64>, ControllerError> {
+    match (zoom, zoom_x1000) {
+        (Some(_), Some(_)) => Err(config("--zoom and --zoom-x1000 are exclusive")),
+        (Some(ratio), None) => {
+            let value: f64 = ratio.parse().map_err(|e| config(format!("--zoom: {e}")))?;
+            if !value.is_finite() || value <= 0.0 {
+                return Err(config("--zoom must be a finite positive ratio (e.g. 2.0)"));
+            }
+            if value > u64::MAX as f64 / 1000.0 {
+                return Err(config("--zoom ratio overflows"));
+            }
+            let scaled = (value * 1000.0).round() as u64;
+            if scaled == 0 {
+                return Err(config("--zoom ratio underflows to zero"));
+            }
+            Ok(Some(scaled))
+        }
+        (None, Some(exact)) => {
+            let value: u64 = exact.parse().map_err(|e| config(format!("--zoom-x1000: {e}")))?;
+            if value == 0 {
+                return Err(config("--zoom-x1000 must be positive (1000 = 1.0x)"));
+            }
+            Ok(Some(value))
+        }
+        (None, None) => Ok(None),
+    }
+}
+
+fn parse_pixel_format(name: &str) -> Option<deepsky_camera::model::PixelFormat> {
+    use deepsky_camera::model::PixelFormat as F;
+    match name.to_ascii_lowercase().as_str() {
+        "raw16le" | "raw16" | "raw" => Some(F::Raw16Le),
+        "dng" => Some(F::Dng),
+        "jpeg" | "jpg" => Some(F::Jpeg),
+        "rgb8" | "rgb" => Some(F::Rgb8),
+        "gray8" | "gray" | "grey8" => Some(F::Gray8),
+        "yuv420" | "yuv" => Some(F::Yuv420),
+        "private" => Some(F::Private),
+        _ => None,
+    }
+}
+
+fn parse_pixel_mode(name: &str) -> Option<deepsky_camera::model::SensorPixelMode> {
+    use deepsky_camera::model::SensorPixelMode as M;
+    match name.to_ascii_lowercase().as_str() {
+        "default" => Some(M::Default),
+        "maximumresolution" | "max" | "full" => Some(M::MaximumResolution),
+        _ => None,
+    }
+}
+
+fn stream_list(caps: &CameraCapabilities) -> String {
+    caps.streams
+        .iter()
+        .map(|s| format!("{}x{}:{:?}:{:?}", s.width, s.height, s.format, s.pixel_mode))
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
+/// Resolve a `--stream WxH:FORMAT[:MODE]` selector against announced streams.
+/// The match must be exact (width, height, format, pixel mode): anything else
+/// fails instead of silently falling back to another resolution (README §108).
+/// Example: `4080x3072:Dng`, `2032x1536:Raw16Le`, `4080x3072:Dng:MaximumResolution`.
+ pub fn resolve_stream(caps: &CameraCapabilities, spec: &str) -> Result<deepsky_camera::model::StreamConfiguration, ControllerError> {
+    let mut parts = spec.split(':');
+    let size = parts.next().unwrap_or("");
+    let format_name = parts.next().ok_or_else(|| config("--stream needs WxH:FORMAT[:MODE], e.g. 4080x3072:Dng"))?;
+    let mode_name = parts.next();
+    if parts.next().is_some() {
+        return Err(config("--stream needs WxH:FORMAT[:MODE], e.g. 4080x3072:Dng"));
+    }
+    let (w, h) = size.split_once(['x', 'X']).and_then(|(w, h)| Some((w.parse::<u32>().ok()?, h.parse::<u32>().ok()?))).filter(|(w, h)| *w > 0 && *h > 0)
+        .ok_or_else(|| config("--stream size must be WIDTHxHEIGHT with positive integers"))?;
+    let format = parse_pixel_format(format_name)
+        .ok_or_else(|| config(format!("--stream unknown format '{format_name}': Raw16Le|Dng|Jpeg|Rgb8|Gray8|Yuv420|Private")))?;
+    let mode = match mode_name {
+        Some(name) => Some(parse_pixel_mode(name)
+            .ok_or_else(|| config(format!("--stream unknown pixel mode '{name}': Default|MaximumResolution")))?),
+        None => None,
+    };
+    let mut candidates: Vec<_> = caps.streams.iter().filter(|s| s.width == w && s.height == h && s.format == format).collect();
+    if candidates.is_empty() {
+        return Err(ControllerError::Camera(CameraError::new(
+            ErrorCode::Unsupported,
+            format!("stream {spec} not announced; announced: {}", stream_list(caps)),
+        )));
+    }
+    if let Some(m) = mode {
+        let list = candidates.iter().map(|s| format!("{}x{}:{:?}:{:?}", s.width, s.height, s.format, s.pixel_mode)).collect::<Vec<_>>().join(", ");
+        return candidates.into_iter().find(|s| s.pixel_mode == m).cloned().ok_or_else(|| {
+            ControllerError::Camera(CameraError::new(
+                ErrorCode::Unsupported,
+                format!("stream {spec} pixel mode not announced; candidates: {list}"),
+            ))
+        });
+    }
+    if candidates.len() > 1 {
+        if let Some(default) = candidates.iter().find(|s| s.pixel_mode == deepsky_camera::model::SensorPixelMode::Default) {
+            return Ok((*default).clone());
+        }
+        return Err(config(format!("--stream {spec} is ambiguous; add :MODE — candidates: {}", candidates.iter().map(|s| format!("{}x{}:{:?}:{:?}", s.width, s.height, s.format, s.pixel_mode)).collect::<Vec<_>>().join(", "))));
+    }
+    Ok(candidates.remove(0).clone())
+}
+
 fn raw_stream(caps: &CameraCapabilities) -> Result<deepsky_camera::model::StreamConfiguration, ControllerError> {
     caps.streams
         .iter()
@@ -157,6 +279,7 @@ fn processing_minimal(caps: &CameraCapabilities) -> std::collections::BTreeMap<S
 /// Reject policy; the constructor below never clamps or substitutes.
 #[derive(Debug, Clone)]
 pub struct CaptureSpec {
+    pub controls: CaptureSettings,
     pub exposure_ns: u64,
     pub sensitivity: u32,
     pub focus_millidiopters: u64,
@@ -184,7 +307,7 @@ pub fn build_request(caps: &CameraCapabilities, spec: &CaptureSpec) -> Result<Ca
                 ControllerError::Camera(CameraError::new(ErrorCode::Unsupported, "no processed stream announced"))
             })?,
     };
-    Ok(CaptureRequest {
+    let mut request = CaptureRequest {
         request_id: 1,
         selection: CameraSelection { camera_id: caps.camera_id.clone(), physical_id: None },
         settings: CaptureSettings {
@@ -200,7 +323,16 @@ pub fn build_request(caps: &CameraCapabilities, spec: &CaptureSpec) -> Result<Ca
             ois: caps.ois_modes.iter().find(|m| *m == "off").cloned(),
             eis: caps.eis_modes.iter().find(|m| *m == "off").cloned(),
         },
-    })
+    };
+    let extra = &spec.controls;
+    request.settings.frame_duration_ns = extra.frame_duration_ns;
+    request.settings.crop = extra.crop;
+    request.settings.processing.extend(extra.processing.clone());
+    if extra.ois.is_some() { request.settings.ois = extra.ois.clone(); }
+    if extra.eis.is_some() { request.settings.eis = extra.eis.clone(); }
+    if extra.white_balance.is_some() { request.settings.white_balance = extra.white_balance.clone(); }
+    caps.validate_request(&request, ValidationPolicy::Reject)?;
+    Ok(request)
 }
 
 pub fn now_unix_ns() -> Result<u64, ControllerError> {
@@ -256,8 +388,12 @@ pub(crate) fn check_thermal(status: &ThermalStatus, warnings: &mut Vec<String>) 
 
 #[derive(Debug, Clone)]
 pub struct AcquisitionOptions {
+    pub strict_results: bool,
+    pub controls: CaptureSettings,
     pub project: String,
     pub out_dir: PathBuf,
+    /// Explicit announced camera ID. None = first hardware camera (see select_camera).
+    pub camera_id: Option<String>,
     pub calibration: SessionKind,
     pub frames: u32,
     pub exposure_ns: u64,
@@ -276,6 +412,7 @@ pub struct AcquisitionOptions {
 impl AcquisitionOptions {
     pub fn spec(&self) -> CaptureSpec {
         CaptureSpec {
+            controls: self.controls.clone(),
             exposure_ns: self.exposure_ns,
             sensitivity: self.sensitivity,
             focus_millidiopters: self.focus_millidiopters,
@@ -291,6 +428,8 @@ impl AcquisitionOptions {
 
 impl Default for AcquisitionOptions {
     fn default() -> Self {        Self {
+            strict_results: false,
+            controls: CaptureSettings::default(),
             project: "TEST".into(),
             out_dir: default_capture_dir(),
             calibration: SessionKind::Test,
@@ -301,6 +440,7 @@ impl Default for AcquisitionOptions {
             wb_kelvin: 5_000,
             wb_preset: None,
             delay_ns: 0,
+            camera_id: None,
             focus_locked: true,
             zoom_x1000: None,
             stream_override: None,
@@ -457,7 +597,7 @@ pub fn run_acquisition(
     }
     let mut backend = connect_source(source)?;
     let caps_list = backend.discover()?;
-    let caps = pick_camera(&caps_list)?.clone();
+    let caps = select_camera(&caps_list, opts.camera_id.as_deref())?.clone();
     let now_ns = now_unix_ns()?;
     let PreparedRun { outcome, stream, mut store, disk: worker, session_dir, session_id, stamp: _stamp, ctx, mut warnings, .. } =
         prepare_run(&mut *backend, &caps, opts, now_ns)?;
@@ -582,7 +722,12 @@ fn run_frames(
         if since_thermal >= 10 {
             let status = backend.thermal()?;
             let mut warnings = Vec::new();
-            if let Err(e) = check_thermal(&status, &mut warnings) {
+            let thermal_check = check_thermal(&status, &mut warnings);
+            let mut manifest = store.manifest().clone();
+            manifest.thermal_events.push(serde_json::json!({"at_unix_ns":at_unix_ns,"severity":status.severity,"temperature_c":status.temperature_c}));
+            manifest.warnings.extend(warnings);
+            store.save(manifest)?;
+            if let Err(e) = thermal_check {
                 let _ = runner.stop();
                 return Err(e);
             }
@@ -591,9 +736,17 @@ fn run_frames(
         since_thermal += 1;
         match capture_and_commit(backend, worker, outcome, stream, &ctx, index, at_unix_ns) {
             Ok(frame_record) => {
+                let observations = frame_record.metadata.warnings.clone();
                 hashes.push(frame_record.sha256.clone());
                 store.record_frame(frame_record)?;
                 runner.frame_committed(index)?;
+                if !observations.is_empty() {
+                    let mut manifest = store.manifest().clone();
+                    manifest.warnings.extend(observations.iter().map(|m|format!("frame {index}: {m}")));
+                    store.save(manifest)?;
+                    for message in &observations { eprintln!("camera observation: frame {index}: {message}"); }
+                    if opts.strict_results { return Err(config(format!("strict-results: frame {index} saved for inspection, sequence stopped: {}",observations.join("; ")))); }
+                }
             }
             // Storage failure on an already-captured frame: fatal, never skip.
             Err(e @ (ControllerError::Io(_) | ControllerError::Sequencer(_))) => {
@@ -621,7 +774,7 @@ fn run_frames(
                 return Err(e);
             }
         }
-        if opts.delay_ns > 0 {
+        if opts.delay_ns > 0 && runner.state() != SequenceState::Completed {
             std::thread::sleep(Duration::from_nanos(opts.delay_ns));
         }
     }
@@ -748,8 +901,11 @@ pub(crate) fn submit_frame(
         protocol_version: Some(PROTOCOL_VERSION.to_string()),
         android_version: None,
         config_version: Some(CONFIG_VERSION),
-        warnings: vec![],
+        warnings: control_observations(requested, reported),
         extra: [
+            ("requested_settings".to_string(), serde_json::json!(outcome.requested.settings)),
+            ("applied_settings".to_string(), serde_json::json!(outcome.applied.settings)),
+            ("reported_settings".to_string(), serde_json::json!(reported_meta.reported)),
             ("origin".to_string(), serde_json::json!(format!("{:?}", reported_meta.origin))),
             ("identity".to_string(), serde_json::json!(reported_meta.identity)),
             ("timestamp_domain".to_string(), serde_json::json!(reported_meta.timestamp_domain)),
@@ -766,6 +922,30 @@ pub(crate) fn submit_frame(
 }
 
 /// Encode packed RGB8 as PNG for UI preview transport (never RAW bytes).
+pub fn control_observations(requested: &CaptureSettings, reported: &CaptureSettings) -> Vec<String> {
+    let mut warnings = Vec::new();
+    for (name, want) in &requested.processing {
+        if reported.processing.get(name) != Some(want) { warnings.push(format!("processing.{name}: requested {want}, reported {:?}",reported.processing.get(name))); }
+    }
+    for (name,want,got) in [("ois",&requested.ois,&reported.ois),("eis",&requested.eis,&reported.eis)] {
+        if want.is_some() && want != got { warnings.push(format!("{name}: requested {want:?}, reported {got:?}")); }
+    }
+    if requested.crop.is_some() && requested.crop != reported.crop { warnings.push(format!("crop: requested {:?}, reported {:?}",requested.crop,reported.crop)); }
+    if requested.white_balance.is_some() && requested.white_balance != reported.white_balance { warnings.push(format!("white_balance: requested {:?}, reported {:?}",requested.white_balance,reported.white_balance)); }
+    for (name,want,got) in [("exposure_ns",requested.exposure_ns,reported.exposure_ns),("sensitivity",requested.sensitivity,reported.sensitivity),("frame_duration_ns",requested.frame_duration_ns,reported.frame_duration_ns),("zoom_x1000",requested.zoom_x1000,reported.zoom_x1000)] {
+        if let Some(want) = want {
+            // Quantization tolerance only, not a substitute for recording exact values.
+            let tolerance = (want / 100).max(if name == "sensitivity" {2} else {1});
+            if got.is_none_or(|got| got.abs_diff(want) > tolerance) { warnings.push(format!("{name}: requested {want}, reported {got:?} (tolerance {tolerance})")); }
+        }
+    }
+    if let Some(FocusRequest::Manual {millidiopters:want,..}) = requested.focus {
+        let got = match reported.focus {Some(FocusRequest::Manual {millidiopters,..})=>Some(millidiopters),_=>None};
+        if got.is_none_or(|got|got.abs_diff(want)>50) { warnings.push(format!("focus_millidiopters: requested {want}, reported {got:?} (tolerance 50)")); }
+    }
+    warnings
+}
+
 pub fn encode_png_rgb8(rgb: &[u8], width: u32, height: u32) -> io::Result<Vec<u8>> {
     if rgb.len() != width as usize * height as usize * 3 || width == 0 || height == 0 {
         return Err(io::Error::new(io::ErrorKind::InvalidInput, "RGB dimensions do not match byte count"));
@@ -786,6 +966,21 @@ pub fn encode_png_rgb8(rgb: &[u8], width: u32, height: u32) -> io::Result<Vec<u8
 mod tests {
     use super::*;
     use crate::source::Source;
+
+    #[test]
+    fn observations_detect_hal_overrides_and_missing_evidence() {
+        let mut want = CaptureSettings::default();
+        want.exposure_ns = Some(100_000_000);
+        want.sensitivity = Some(800);
+        want.processing.insert("shading".into(),"off".into());
+        let mut got = want.clone();
+        got.exposure_ns = Some(99_999_644); got.sensitivity = Some(799);
+        assert!(control_observations(&want,&got).is_empty());
+        got.processing.insert("shading".into(),"high_quality".into());
+        assert_eq!(control_observations(&want,&got).len(),1);
+        got.exposure_ns = None;
+        assert_eq!(control_observations(&want,&got).len(),2);
+    }
 
     #[test]
     fn utc_stamp_known_value() {

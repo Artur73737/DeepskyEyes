@@ -12,6 +12,10 @@ pub trait CameraBackend {
         Err(CameraError::new(ErrorCode::Unsupported, "Center autofocus unavailable on this backend"))
     }
     fn thermal(&mut self) -> CameraResult<ThermalStatus>;
+    /// Read-only adapter diagnostics, separate from the portable capability model.
+    fn diagnostic(&mut self, _method: &str) -> CameraResult<serde_json::Value> {
+        Err(CameraError::new(ErrorCode::Unsupported, "adapter diagnostics unavailable"))
+    }
     fn close(&mut self) -> CameraResult<()>;
     /// Cumulative (rx, tx) transport bytes when counted; None for direct links.
     fn transport_stats(&self) -> Option<(u64, u64)> {
