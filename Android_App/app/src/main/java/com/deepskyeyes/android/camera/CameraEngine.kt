@@ -8,6 +8,7 @@ import android.hardware.camera2.*
 import android.hardware.camera2.params.*
 import android.media.Image
 import android.media.ImageReader
+import android.util.Log
 import android.os.Handler
 import android.os.HandlerThread
 import android.os.PowerManager
@@ -99,6 +100,8 @@ class CameraEngine(context: Context, private val status: (String) -> Unit) : Aut
     }
     private fun ensureSession(stream: JSONObject, rawPreview: Boolean = false) {
         if (session != null && sessionStream?.sameJson(stream) == true && (rawPreviewReader != null) == rawPreview) return
+        val t0 = SystemClock.elapsedRealtime()
+        Log.d("DSKY", "ensureSession ${stream.getInt("width")}x${stream.getInt("height")} rawPreview=$rawPreview")
         closeSession()
         val camera = device ?: fault("Disconnected","Camera is closed")
         val format = when(stream.getString("format")) {
@@ -146,6 +149,7 @@ class CameraEngine(context: Context, private val status: (String) -> Unit) : Aut
             camera.createCaptureSession(config)
             session = await(ready,10_000)
             sessionStream = stream.copyJson()
+            Log.d("DSKY", "session ready in ${SystemClock.elapsedRealtime()-t0} ms")
         } catch(e: Exception) { ready.completeExceptionally(e); closeSession(); throw e }
     }
 
@@ -200,16 +204,19 @@ class CameraEngine(context: Context, private val status: (String) -> Unit) : Aut
         return b
     }
 
-    private fun take(settings: JSONObject, preview: Boolean, allowWarmupRetry: Boolean = true): Pair<Image,TotalCaptureResult> {
+    private fun take(settings: JSONObject, preview: Boolean, warmupLeft: Int = 5): Pair<Image,TotalCaptureResult> {
         requireCamera(!stopped, "Disconnected", "Camera stopped")
         if(power.currentThermalStatus >= PowerManager.THERMAL_STATUS_SEVERE) fault("Thermal","Android thermal severity refuses capture")
         val imageFuture = CompletableFuture<Image>(); val resultFuture = CompletableFuture<TotalCaptureResult>()
         pendingImage = imageFuture; pendingResult = resultFuture
-        val timeout = ((settings.longOrNull("frame_duration_ns") ?: settings.getLong("exposure_ns")) / 1_000_000 + 15_000).coerceAtMost(115_000)
+        // First valid RAW after HAL startup can span a pipeline frame plus
+        // the requested exposure. This is a timeout, never an inserted delay.
+        val timeout = ((maxOf(settings.longOrNull("frame_duration_ns") ?: 0L,settings.getLong("exposure_ns"))) / 1_000_000 * 2 + 15_000).coerceAtMost(115_000)
         var image: Image? = null
         try {
             val request = buildRequest(settings,preview).build()
             val submitted = SystemClock.elapsedRealtimeNanos()
+            Log.d("DSKY", "take submit exp=${settings.getLong("exposure_ns")} warmupLeft=$warmupLeft")
             session!!.capture(request, object : CameraCaptureSession.CaptureCallback() {
                 override fun onCaptureCompleted(s: CameraCaptureSession,request: CaptureRequest,result: TotalCaptureResult) { resultFuture.complete(result) }
                 override fun onCaptureFailed(s: CameraCaptureSession,request: CaptureRequest,failure: CaptureFailure) { resultFuture.completeExceptionally(CameraFault("Io","Capture failure ${failure.reason}")) }
@@ -217,18 +224,23 @@ class CameraEngine(context: Context, private val status: (String) -> Unit) : Aut
             },handler)
             val deadline = SystemClock.elapsedRealtime() + timeout
             val result = await(resultFuture,timeout)
+            Log.d("DSKY", "take result after ${(SystemClock.elapsedRealtimeNanos()-submitted)/1_000_000} ms (exp=${settings.getLong("exposure_ns")})")
             image = await(imageFuture,(deadline-SystemClock.elapsedRealtime()).coerceAtLeast(1))
+            Log.d("DSKY", "take image after ${(SystemClock.elapsedRealtimeNanos()-submitted)/1_000_000} ms")
             val timestamp = result[CaptureResult.SENSOR_TIMESTAMP] ?: fault("Io","Sensor timestamp missing")
             requireCamera(image.timestamp == timestamp, "Io", "Image and CaptureResult timestamps differ")
             val reportedExposure = result[CaptureResult.SENSOR_EXPOSURE_TIME] ?: fault("Io","Sensor exposure missing")
-            // Some Pixel HALs return a startup frame with the new long-exposure
-            // metadata before that exposure could physically finish. Never save
-            // or display this frame as a valid scientific exposure.
+            // Some Pixel HALs return startup frames carrying the new
+            // long-exposure metadata before that exposure could physically
+            // finish. Never save or display such a frame as valid: discard
+            // and re-acquire on the (now primed) session, bounded retries.
             if (reportedExposure >= 100_000_000L && SystemClock.elapsedRealtimeNanos()-submitted < reportedExposure*95/100) {
                 image.close(); image = null
-                requireCamera(allowWarmupRetry,"Io","Camera returned a frame before its reported exposure could finish")
+                requireCamera(warmupLeft > 0,"Io","Camera returned a frame before its reported exposure could finish")
+                Log.d("DSKY", "take warmup-discard elapsedMs=${(SystemClock.elapsedRealtimeNanos()-submitted)/1_000_000} warmupLeft=$warmupLeft")
                 status("Discarding unverified startup frame; acquiring real exposure")
-                return take(settings,preview,false)
+                pendingImage = null; pendingResult = null
+                return take(settings,preview,warmupLeft-1)
             }
             return image to result
         } catch(e: Exception) {
@@ -248,6 +260,8 @@ class CameraEngine(context: Context, private val status: (String) -> Unit) : Aut
         status("CAPTURING")
         val (image,result) = take(settings,false)
         image.use {
+            requireCamera(image.width == stream.getInt("width") && image.height == stream.getInt("height"),
+                "Io","Camera returned dimensions different from the selected full stream; refusing cropped or resized data")
             val format = stream.getString("format")
             val c = discovery.characteristics(selected!!.getString("camera_id"))
             val data = when(format) {
@@ -312,20 +326,46 @@ class CameraEngine(context: Context, private val status: (String) -> Unit) : Aut
         } else liveFrames.poll(timeout,TimeUnit.MILLISECONDS) ?: fault("Timeout","Live preview callback timeout")
         image.use {
             val planes = image.planes
-            // Cache plane accessors once: querying Image.Plane.buffer inside
-            // the pixel loop incurs hundreds of thousands of native calls.
-            val buffers = planes.map { it.buffer }
-            val rows = planes.map { it.rowStride }
-            val strides = planes.map { it.pixelStride }
             val width = image.width; val height = image.height
+            // Densify each plane with one native memcpy per row instead of
+            // one JNI ByteBuffer.get() call per pixel (~1.2M calls/frame at
+            // 640x480 was the liveview bottleneck at short exposures).
+            // Row-bounded reads: remaining() can be smaller than
+            // rowStride*height, so never bulk-read past the row limit.
+            fun readPlane(p: Int, w: Int, h: Int): ByteArray {
+                val buf = planes[p].buffer.duplicate()
+                val rowStride = planes[p].rowStride
+                val pixStride = planes[p].pixelStride
+                val out = ByteArray(w * h)
+                val row = ByteArray(rowStride)
+                for (y in 0 until h) {
+                    buf.position(y * rowStride)
+                    val n = minOf(rowStride, buf.remaining())
+                    requireCamera(n >= (w-1)*pixStride+1,"Io","Truncated YUV plane row; refusing fabricated pixels")
+                    buf.get(row, 0, n)
+                    var x = 0; var i = 0
+                    while (x < w && i < n) { out[y * w + x] = row[i]; x++; i += pixStride }
+                }
+                return out
+            }
+            val yPlane = readPlane(0, width, height)
+            val uPlane = readPlane(1, width / 2, height / 2)
+            val vPlane = readPlane(2, width / 2, height / 2)
             val bytes = ByteArray(width*height*3)
-            fun sample(p: Int, xx: Int, yy: Int) = buffers[p].get(yy*rows[p]+xx*strides[p]).toInt() and 255
-            for(y in 0 until height) for(x in 0 until width) {
-                val l = (sample(0,x,y)-16).coerceAtLeast(0); val u=sample(1,x/2,y/2)-128; val v=sample(2,x/2,y/2)-128
-                val i=(y*width+x)*3
-                bytes[i]=((298*l+409*v+128) shr 8).coerceIn(0,255).toByte()
-                bytes[i+1]=((298*l-100*u-208*v+128) shr 8).coerceIn(0,255).toByte()
-                bytes[i+2]=((298*l+516*u+128) shr 8).coerceIn(0,255).toByte()
+            for (y in 0 until height) {
+                val yOff = y * width
+                val uvOff = (y / 2) * (width / 2)
+                var o = y * width * 3
+                for (x in 0 until width) {
+                    val l = (yPlane[yOff + x].toInt() and 255) - 16
+                    val yy = if (l < 0) 0 else l
+                    val xx = uvOff + x / 2
+                    val u = (uPlane[xx].toInt() and 255) - 128
+                    val v = (vPlane[xx].toInt() and 255) - 128
+                    bytes[o++] = ((298 * yy + 409 * v + 128) shr 8).coerceIn(0, 255).toByte()
+                    bytes[o++] = ((298 * yy - 100 * u - 208 * v + 128) shr 8).coerceIn(0, 255).toByte()
+                    bytes[o++] = ((298 * yy + 516 * u + 128) shr 8).coerceIn(0, 255).toByte()
+                }
             }
             return Capture(obj("width" to image.width,"height" to image.height,
                 "format" to "Rgb8","timestamp_ns" to result[CaptureResult.SENSOR_TIMESTAMP],"origin" to "Device",
@@ -374,7 +414,11 @@ class CameraEngine(context: Context, private val status: (String) -> Unit) : Aut
             session!!.setRepeatingRequest(b.build(),callback,handler)
             b.set(CaptureRequest.CONTROL_AF_TRIGGER,CameraMetadata.CONTROL_AF_TRIGGER_START)
             session!!.capture(b.build(),callback,handler)
-            return await(result,10_000)
+            val distance = await(result,10_000)
+            // Freeze the measured result immediately in the engine, not only
+            // after a later desktop configure which might fail or be delayed.
+            settings.put("focus",obj("Manual" to obj("millidiopters" to distance,"locked" to true)))
+            return distance
         } finally { closeSession() }
     }
 
@@ -402,14 +446,8 @@ class CameraEngine(context: Context, private val status: (String) -> Unit) : Aut
             "eis" to r[CaptureResult.CONTROL_VIDEO_STABILIZATION_MODE]?.let { if(it == 0) "off" else "on" })
     }
     private fun packedRaw(image: Image): ByteArray {
-        val p = image.planes[0]; val b = p.buffer
-        requireCamera(p.pixelStride >= 2,"Unsupported","Unsupported RAW pixel stride")
-        val output = ByteArray(image.width*image.height*2)
-        for(y in 0 until image.height) for(x in 0 until image.width) {
-            val src=y*p.rowStride+x*p.pixelStride; val dst=(y*image.width+x)*2
-            output[dst]=b.get(src); output[dst+1]=b.get(src+1)
-        }
-        return output
+        val p = image.planes[0]
+        return RawPacking.pack(p.buffer,image.width,image.height,p.rowStride,p.pixelStride)
     }
     private fun failPending(code: String,message: String) {
         val error = CameraFault(code,message)

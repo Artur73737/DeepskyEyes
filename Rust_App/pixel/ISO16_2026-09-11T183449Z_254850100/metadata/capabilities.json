@@ -1,0 +1,420 @@
+{
+  "schema_version": 1,
+  "capabilities": {
+    "schema_version": 1,
+    "camera_id": "0",
+    "identity": "Google Pixel 8 Pro / Android 17",
+    "origin": "Device",
+    "lens_facing": "back",
+    "lens_role": null,
+    "hardware_level": "1",
+    "logical": true,
+    "physical_cameras": [
+      {
+        "id": "2",
+        "directly_openable": false,
+        "routable": false
+      },
+      {
+        "id": "3",
+        "directly_openable": false,
+        "routable": false
+      },
+      {
+        "id": "4",
+        "directly_openable": false,
+        "routable": false
+      },
+      {
+        "id": "5",
+        "directly_openable": false,
+        "routable": false
+      },
+      {
+        "id": "6",
+        "directly_openable": false,
+        "routable": false
+      }
+    ],
+    "manual_sensor": true,
+    "raw": true,
+    "exposure_ns": {
+      "min": 26345,
+      "max": 16000001084
+    },
+    "sensitivity": {
+      "min": 21,
+      "max": 10666
+    },
+    "frame_duration_ns": {
+      "min": 0,
+      "max": 16000001084
+    },
+    "focus_millidiopters": {
+      "min": 0,
+      "max": 9523
+    },
+    "focus_calibration": "1",
+    "af_modes": [
+      "off"
+    ],
+    "focus_lock": true,
+    "zoom_x1000": {
+      "min": 495,
+      "max": 30000
+    },
+    "active_array": {
+      "x": 0,
+      "y": 0,
+      "width": 4080,
+      "height": 3072
+    },
+    "crop_supported": true,
+    "streams": [
+      {
+        "width": 4080,
+        "height": 3072,
+        "format": "Dng",
+        "pixel_mode": "Default",
+        "binned": null,
+        "min_frame_duration_ns": 33333333,
+        "stall_duration_ns": 0
+      },
+      {
+        "width": 4080,
+        "height": 3072,
+        "format": "Raw16Le",
+        "pixel_mode": "Default",
+        "binned": null,
+        "min_frame_duration_ns": 33333333,
+        "stall_duration_ns": 0
+      },
+      {
+        "width": 4080,
+        "height": 2288,
+        "format": "Dng",
+        "pixel_mode": "Default",
+        "binned": null,
+        "min_frame_duration_ns": 16666666,
+        "stall_duration_ns": 0
+      },
+      {
+        "width": 4080,
+        "height": 2288,
+        "format": "Raw16Le",
+        "pixel_mode": "Default",
+        "binned": null,
+        "min_frame_duration_ns": 16666666,
+        "stall_duration_ns": 0
+      },
+      {
+        "width": 2032,
+        "height": 1536,
+        "format": "Dng",
+        "pixel_mode": "Default",
+        "binned": null,
+        "min_frame_duration_ns": 16666666,
+        "stall_duration_ns": 0
+      },
+      {
+        "width": 2032,
+        "height": 1536,
+        "format": "Raw16Le",
+        "pixel_mode": "Default",
+        "binned": null,
+        "min_frame_duration_ns": 16666666,
+        "stall_duration_ns": 0
+      },
+      {
+        "width": 2016,
+        "height": 1136,
+        "format": "Dng",
+        "pixel_mode": "Default",
+        "binned": null,
+        "min_frame_duration_ns": 16666666,
+        "stall_duration_ns": 0
+      },
+      {
+        "width": 2016,
+        "height": 1136,
+        "format": "Raw16Le",
+        "pixel_mode": "Default",
+        "binned": null,
+        "min_frame_duration_ns": 16666666,
+        "stall_duration_ns": 0
+      },
+      {
+        "width": 4032,
+        "height": 3024,
+        "format": "Jpeg",
+        "pixel_mode": "Default",
+        "binned": null,
+        "min_frame_duration_ns": 33333333,
+        "stall_duration_ns": 0
+      },
+      {
+        "width": 4000,
+        "height": 3000,
+        "format": "Jpeg",
+        "pixel_mode": "Default",
+        "binned": null,
+        "min_frame_duration_ns": 33333333,
+        "stall_duration_ns": 0
+      },
+      {
+        "width": 4032,
+        "height": 2268,
+        "format": "Jpeg",
+        "pixel_mode": "Default",
+        "binned": null,
+        "min_frame_duration_ns": 16666666,
+        "stall_duration_ns": 0
+      },
+      {
+        "width": 3840,
+        "height": 2160,
+        "format": "Jpeg",
+        "pixel_mode": "Default",
+        "binned": null,
+        "min_frame_duration_ns": 16666666,
+        "stall_duration_ns": 0
+      },
+      {
+        "width": 4000,
+        "height": 2000,
+        "format": "Jpeg",
+        "pixel_mode": "Default",
+        "binned": null,
+        "min_frame_duration_ns": 33333333,
+        "stall_duration_ns": 0
+      },
+      {
+        "width": 3264,
+        "height": 2448,
+        "format": "Jpeg",
+        "pixel_mode": "Default",
+        "binned": null,
+        "min_frame_duration_ns": 33333333,
+        "stall_duration_ns": 0
+      },
+      {
+        "width": 3264,
+        "height": 1836,
+        "format": "Jpeg",
+        "pixel_mode": "Default",
+        "binned": null,
+        "min_frame_duration_ns": 16666666,
+        "stall_duration_ns": 0
+      },
+      {
+        "width": 2560,
+        "height": 1920,
+        "format": "Jpeg",
+        "pixel_mode": "Default",
+        "binned": null,
+        "min_frame_duration_ns": 33333333,
+        "stall_duration_ns": 0
+      },
+      {
+        "width": 2688,
+        "height": 1512,
+        "format": "Jpeg",
+        "pixel_mode": "Default",
+        "binned": null,
+        "min_frame_duration_ns": 16666666,
+        "stall_duration_ns": 0
+      },
+      {
+        "width": 1920,
+        "height": 1920,
+        "format": "Jpeg",
+        "pixel_mode": "Default",
+        "binned": null,
+        "min_frame_duration_ns": 33333333,
+        "stall_duration_ns": 0
+      },
+      {
+        "width": 2560,
+        "height": 1280,
+        "format": "Jpeg",
+        "pixel_mode": "Default",
+        "binned": null,
+        "min_frame_duration_ns": 33333333,
+        "stall_duration_ns": 0
+      },
+      {
+        "width": 2048,
+        "height": 1536,
+        "format": "Jpeg",
+        "pixel_mode": "Default",
+        "binned": null,
+        "min_frame_duration_ns": 33333333,
+        "stall_duration_ns": 0
+      },
+      {
+        "width": 1920,
+        "height": 1440,
+        "format": "Jpeg",
+        "pixel_mode": "Default",
+        "binned": null,
+        "min_frame_duration_ns": 33333333,
+        "stall_duration_ns": 0
+      },
+      {
+        "width": 1920,
+        "height": 1080,
+        "format": "Jpeg",
+        "pixel_mode": "Default",
+        "binned": null,
+        "min_frame_duration_ns": 16666666,
+        "stall_duration_ns": 0
+      },
+      {
+        "width": 4080,
+        "height": 3072,
+        "format": "Jpeg",
+        "pixel_mode": "Default",
+        "binned": null,
+        "min_frame_duration_ns": 33333333,
+        "stall_duration_ns": 0
+      }
+    ],
+    "preview_streams": [
+      {
+        "width": 176,
+        "height": 144,
+        "format": "Rgb8",
+        "pixel_mode": "Default",
+        "binned": null,
+        "min_frame_duration_ns": 33333333,
+        "stall_duration_ns": 0
+      },
+      {
+        "width": 320,
+        "height": 240,
+        "format": "Rgb8",
+        "pixel_mode": "Default",
+        "binned": null,
+        "min_frame_duration_ns": 33333333,
+        "stall_duration_ns": 0
+      },
+      {
+        "width": 352,
+        "height": 288,
+        "format": "Rgb8",
+        "pixel_mode": "Default",
+        "binned": null,
+        "min_frame_duration_ns": 33333333,
+        "stall_duration_ns": 0
+      },
+      {
+        "width": 640,
+        "height": 360,
+        "format": "Rgb8",
+        "pixel_mode": "Default",
+        "binned": null,
+        "min_frame_duration_ns": 16666666,
+        "stall_duration_ns": 0
+      },
+      {
+        "width": 640,
+        "height": 480,
+        "format": "Rgb8",
+        "pixel_mode": "Default",
+        "binned": null,
+        "min_frame_duration_ns": 33333333,
+        "stall_duration_ns": 0
+      },
+      {
+        "width": 720,
+        "height": 480,
+        "format": "Rgb8",
+        "pixel_mode": "Default",
+        "binned": null,
+        "min_frame_duration_ns": 33333333,
+        "stall_duration_ns": 0
+      },
+      {
+        "width": 800,
+        "height": 600,
+        "format": "Rgb8",
+        "pixel_mode": "Default",
+        "binned": null,
+        "min_frame_duration_ns": 33333333,
+        "stall_duration_ns": 0
+      },
+      {
+        "width": 1024,
+        "height": 576,
+        "format": "Rgb8",
+        "pixel_mode": "Default",
+        "binned": null,
+        "min_frame_duration_ns": 16666666,
+        "stall_duration_ns": 0
+      },
+      {
+        "width": 1280,
+        "height": 720,
+        "format": "Rgb8",
+        "pixel_mode": "Default",
+        "binned": null,
+        "min_frame_duration_ns": 16666666,
+        "stall_duration_ns": 0
+      }
+    ],
+    "wb_modes": [
+      "auto",
+      "incandescent",
+      "fluorescent",
+      "warm_fluorescent",
+      "daylight",
+      "cloudy_daylight",
+      "twilight",
+      "shade"
+    ],
+    "wb_kelvin": null,
+    "wb_tint": null,
+    "wb_gain_x1000": null,
+    "processing_modes": {
+      "aberration": [
+        "off"
+      ],
+      "distortion": [
+        "off",
+        "fast"
+      ],
+      "edge": [
+        "off",
+        "fast",
+        "high_quality"
+      ],
+      "hot_pixel": [
+        "off",
+        "fast",
+        "high_quality"
+      ],
+      "noise_reduction": [
+        "off",
+        "fast",
+        "high_quality"
+      ],
+      "shading": [
+        "off",
+        "fast",
+        "high_quality"
+      ],
+      "tonemap": [
+        "fast",
+        "high_quality"
+      ]
+    },
+    "ois_modes": [
+      "off",
+      "on"
+    ],
+    "eis_modes": [
+      "off",
+      "on"
+    ]
+  }
+}

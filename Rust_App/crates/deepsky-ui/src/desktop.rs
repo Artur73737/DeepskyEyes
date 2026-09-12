@@ -97,7 +97,7 @@ fn fmt_exposure(ns: u64) -> String {
 }
 
 fn fmt_integration(frames: u32, exposure_ns: u64) -> String {
-    let seconds = u64::from(frames) * exposure_ns / 1_000_000_000;
+    let seconds = u128::from(frames) * u128::from(exposure_ns) / 1_000_000_000;
     format!("{} s ({} min)", seconds, seconds / 60)
 }
 
@@ -152,6 +152,8 @@ struct Desktop {
     image: Option<Arc<Image>>,
     image_revision: Option<u64>,
     preview_cover: bool,
+    numeric_focus: Vec<FocusHandle>,
+    numeric_edit: Option<(SliderId, String, bool)>,
     error: String,
     _poll: Task<()>,
 }
@@ -164,6 +166,44 @@ enum SliderId {
     Focus,
     Zoom,
     Frames,
+}
+
+fn parse_numeric(id: SliderId, value: &str) -> Result<UiAction, &'static str> {
+    let text = value.trim().replace(',', ".");
+    if id == SliderId::Frames {
+        return text.parse::<u32>().ok().filter(|v| *v > 0).map(UiAction::SetFrameCount)
+            .ok_or("Numero scatti: inserire un intero da 1 a 4294967295");
+    }
+    let number = text.parse::<f64>().ok().filter(|v| v.is_finite() && *v >= 0.0)
+        .ok_or("Inserire un numero positivo valido")?;
+    match id {
+        SliderId::Exposure if number > 0.0 && number * 1e9 < u64::MAX as f64 => Ok(UiAction::SetExposure((number * 1e9).round() as u64)),
+        SliderId::Iso if number >= 1.0 && number <= u32::MAX as f64 && number.fract() == 0.0 => Ok(UiAction::SetIso(number as u32)),
+        SliderId::Focus if number <= f32::MAX as f64 => Ok(UiAction::SetFocus(number as f32)),
+        SliderId::Zoom if number > 0.0 && number <= f32::MAX as f64 => Ok(UiAction::SetZoom(number as f32)),
+        _ => Err("Valore fuori intervallo"),
+    }
+}
+
+#[cfg(test)]
+mod numeric_tests {
+    use super::{parse_numeric, fmt_integration, SliderId, UiAction};
+    #[test]
+    fn exact_frame_count_and_decimal_exposure() {
+        assert_eq!(parse_numeric(SliderId::Frames, "1234"), Ok(UiAction::SetFrameCount(1234)));
+        assert_eq!(parse_numeric(SliderId::Exposure, "0,125"), Ok(UiAction::SetExposure(125_000_000)));
+        assert_eq!(parse_numeric(SliderId::Exposure, "0.000026345"), Ok(UiAction::SetExposure(26_345)));
+    }
+    #[test]
+    fn rejects_invalid_numeric_requests() {
+        for text in ["0", "-1", "1.5", "4294967296", "NaN", ""] {
+            assert!(parse_numeric(SliderId::Frames, text).is_err());
+        }
+        assert!(parse_numeric(SliderId::Iso, "800.5").is_err());
+        assert!(parse_numeric(SliderId::Exposure, "inf").is_err());
+        assert!(parse_numeric(SliderId::Focus, "NaN").is_err());
+        assert!(!fmt_integration(u32::MAX, u64::MAX).is_empty());
+    }
 }
 
 /// Value slider over an announced numeric range. Relative drag: ~200 px
@@ -264,6 +304,54 @@ fn slider(
 }
 
 impl Desktop {
+    /// Exact numeric entry, independently focused for each control. Values are
+    /// requests only; the worker still validates announced hardware ranges.
+    fn number_input(&self, dom: &'static str, id: SliderId, value: String, enabled: bool, cx: &mut Context<Self>) -> Stateful<Div> {
+        let index = if dom == "sequence-count-input" { 5 } else { match id { SliderId::Exposure => 0, SliderId::Iso => 1, SliderId::Focus => 2, SliderId::Zoom => 3, SliderId::Frames => 4 } };
+        let focus = self.numeric_focus[index].clone();
+        let active = self.numeric_edit.as_ref().filter(|(target, _, _)| *target == id);
+        let shown = active.map(|(_, text, selected)| if *selected { format!("[{text}]") } else { format!("{text} ▏") }).unwrap_or_else(|| value.clone());
+        div().id(dom).track_focus(&focus).px_2().py_1().rounded(px(5.)).border_1()
+            .border_color(rgb(if active.is_some() { BLUE } else { EDGE })).bg(rgb(PANEL_ACTIVE))
+            .text_color(rgb(if enabled { TEXT } else { MUTED })).cursor_text()
+            .child(format!("{shown}  · Invio"))
+            .on_mouse_down(MouseButton::Left, cx.listener(move |view, _, window, cx| {
+                if enabled {
+                    focus.focus(window);
+                    view.numeric_edit = Some((id, value.clone(), true));
+                    cx.notify();
+                }
+            }))
+            .on_key_down(cx.listener(move |view, event: &KeyDownEvent, _, cx| {
+                if !enabled || !view.numeric_edit.as_ref().is_some_and(|(target, _, _)| *target == id) { return; }
+                cx.stop_propagation();
+                let key = &event.keystroke;
+                if key.key == "escape" { view.numeric_edit = None; cx.notify(); return; }
+                if key.key == "enter" {
+                    let text = &view.numeric_edit.as_ref().unwrap().1;
+                    match parse_numeric(id, text) {
+                        Ok(action) => { view.numeric_edit = None; view.send(action, cx); }
+                        Err(error) => view.error = error.into(),
+                    }
+                    cx.notify(); return;
+                }
+                let paste = if key.modifiers.control && key.key == "v" { cx.read_from_clipboard().and_then(|item| item.text()) } else { None };
+                let (_, buffer, selected) = view.numeric_edit.as_mut().unwrap();
+                if key.modifiers.control && key.key == "a" { *selected = true; }
+                else if key.key == "backspace" || key.key == "delete" {
+                    if *selected { buffer.clear(); } else { buffer.pop(); }
+                    *selected = false;
+                } else if let Some(text) = paste.or_else(|| if !key.modifiers.control && !key.modifiers.alt { key.key_char.clone() } else { None }) {
+                    if text.len() <= 32 && text.chars().all(|c| c.is_ascii_digit() || c == '.' || c == ',') {
+                        if *selected { buffer.clear(); }
+                        if buffer.len() + text.len() <= 32 { buffer.push_str(&text); }
+                        *selected = false;
+                    }
+                }
+                cx.notify();
+            }))
+    }
+
     fn new(
         state: UiSnapshot,
         snapshots: Receiver<UiSnapshot>,
@@ -323,7 +411,9 @@ impl Desktop {
             slider_drag: None,
             image: None,
             image_revision: None,
-            preview_cover: true,
+            preview_cover: false,
+            numeric_focus: (0..6).map(|_| cx.focus_handle()).collect(),
+            numeric_edit: None,
             error: String::new(),
             _poll: poll,
         };
@@ -1217,6 +1307,7 @@ impl Desktop {
                     cx,
                 ),
             )
+            .child(self.number_input("count-input", SliderId::Frames, s.frames_total.to_string(), !active, cx))
             .child(
                 div()
                     .flex()
@@ -1430,7 +1521,7 @@ impl Desktop {
                             .items_center()
                             .gap_2()
                             .flex_shrink_0()
-                            .child(div().text_xs().text_color(rgb(MUTED)).child("Frame"))
+                            .child(div().text_xs().text_color(rgb(MUTED)).child("Ciclo frame"))
                             .child(
                                 div()
                                     .w(px(120.))
@@ -1446,7 +1537,7 @@ impl Desktop {
                                     Some(p) => {
                                         let total_s = s.frame_exposure_s.unwrap_or(s.exposure_ns as f32 / 1e9);
                                         let elapsed = s.frame_elapsed_s.unwrap_or(p * total_s);
-                                        format!("{elapsed:.2} / {total_s:.3} s{}", if elapsed > total_s { " · readout / transfer" } else { " · elapsed (host)" })
+                                        format!("Richiesta {total_s:.3} s · ciclo {elapsed:.2} s (camera + USB)")
                                     }
                                     None => "—".into(),
                                 }),
@@ -1536,6 +1627,7 @@ impl Desktop {
         items.push(Self::row("Sensor", s.sensor.clone()).into_any_element());
         items.push(Self::row("Hardware", s.hardware_level.clone()).into_any_element());
         items.push(Self::row("Exposure", fmt_exposure(s.exposure_ns)).into_any_element());
+        items.push(self.number_input("exposure-input", SliderId::Exposure, format!("{:.9}", s.exposure_ns as f64 / 1e9), edit, cx).into_any_element());
         items.push(
             slider(
                 "exp-slider",
@@ -1549,6 +1641,7 @@ impl Desktop {
             .into_any_element(),
         );
         items.push(Self::row("Sensitivity", format!("ISO {}", s.iso)).into_any_element());
+        items.push(self.number_input("iso-input", SliderId::Iso, s.iso.to_string(), edit, cx).into_any_element());
         items.push(
             slider(
                 "iso-slider",
@@ -1562,6 +1655,7 @@ impl Desktop {
             .into_any_element(),
         );
         items.push(Self::row("Focus", format!("{:.2} D", s.focus_diopters)).into_any_element());
+        items.push(self.number_input("focus-input", SliderId::Focus, format!("{:.3}", s.focus_diopters), edit, cx).into_any_element());
         items.push(self.button("center-af", "Autofocus centro + blocco", UiAction::AutofocusCenter,
             edit && s.focus_range.is_some(), cx).into_any_element());
         items.push(
@@ -1596,7 +1690,8 @@ impl Desktop {
             )
             .into_any_element(),
         );
-        items.push(Self::row("Zoom", format!("{:.1}×", s.zoom)).into_any_element());
+        items.push(Self::row("Zoom anteprima · RAW intero", format!("{:.1}×", s.zoom)).into_any_element());
+        items.push(self.number_input("zoom-input", SliderId::Zoom, format!("{:.3}", s.zoom), edit, cx).into_any_element());
         items.push(
             slider(
                 "zoom-slider",
@@ -1663,6 +1758,7 @@ impl Desktop {
                             .child(Self::row("Frames", format!("{:03} / {}", s.frames_done, s.frames_total)))
                             .child(Self::row("Integration", fmt_integration(s.frames_total, s.exposure_ns)))
                             .child(Self::row("State", format!("{:?}", s.sequence)))
+                            .child(self.number_input("sequence-count-input", SliderId::Frames, s.frames_total.to_string(), !active, cx))
                             .child(
                                 slider(
                                     "seq-frames-slider",

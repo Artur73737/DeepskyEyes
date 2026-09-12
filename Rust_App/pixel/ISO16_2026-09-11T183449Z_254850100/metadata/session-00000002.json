@@ -1,0 +1,563 @@
+{
+  "schema_version": 1,
+  "project": "ISO16",
+  "device": "Google Pixel 8 Pro / Android 17",
+  "camera_id": "0",
+  "frames_requested": 1,
+  "frames_completed": 1,
+  "session_id": "sess-1789151689254850100-16932",
+  "started_at": "2026-09-11T183449Z",
+  "app_version": "0.1.0",
+  "protocol_version": "1",
+  "android_version": null,
+  "config_version": 1,
+  "configuration": {
+    "request_id": 1,
+    "selection": {
+      "camera_id": "0",
+      "physical_id": null
+    },
+    "settings": {
+      "exposure_ns": 16000000000,
+      "sensitivity": 100,
+      "frame_duration_ns": null,
+      "focus": {
+        "Manual": {
+          "millidiopters": 0,
+          "locked": true
+        }
+      },
+      "zoom_x1000": null,
+      "crop": null,
+      "stream": {
+        "width": 4080,
+        "height": 3072,
+        "format": "Dng",
+        "pixel_mode": "Default",
+        "binned": null,
+        "min_frame_duration_ns": 33333333,
+        "stall_duration_ns": 0
+      },
+      "white_balance": {
+        "Mode": "daylight"
+      },
+      "processing": {
+        "aberration": "off",
+        "distortion": "off",
+        "edge": "off",
+        "hot_pixel": "off",
+        "noise_reduction": "off",
+        "shading": "off"
+      },
+      "ois": "off",
+      "eis": "off"
+    }
+  },
+  "capability_snapshot": {
+    "schema_version": 1,
+    "camera_id": "0",
+    "identity": "Google Pixel 8 Pro / Android 17",
+    "origin": "Device",
+    "lens_facing": "back",
+    "lens_role": null,
+    "hardware_level": "1",
+    "logical": true,
+    "physical_cameras": [
+      {
+        "id": "2",
+        "directly_openable": false,
+        "routable": false
+      },
+      {
+        "id": "3",
+        "directly_openable": false,
+        "routable": false
+      },
+      {
+        "id": "4",
+        "directly_openable": false,
+        "routable": false
+      },
+      {
+        "id": "5",
+        "directly_openable": false,
+        "routable": false
+      },
+      {
+        "id": "6",
+        "directly_openable": false,
+        "routable": false
+      }
+    ],
+    "manual_sensor": true,
+    "raw": true,
+    "exposure_ns": {
+      "min": 26345,
+      "max": 16000001084
+    },
+    "sensitivity": {
+      "min": 21,
+      "max": 10666
+    },
+    "frame_duration_ns": {
+      "min": 0,
+      "max": 16000001084
+    },
+    "focus_millidiopters": {
+      "min": 0,
+      "max": 9523
+    },
+    "focus_calibration": "1",
+    "af_modes": [
+      "off"
+    ],
+    "focus_lock": true,
+    "zoom_x1000": {
+      "min": 495,
+      "max": 30000
+    },
+    "active_array": {
+      "x": 0,
+      "y": 0,
+      "width": 4080,
+      "height": 3072
+    },
+    "crop_supported": true,
+    "streams": [
+      {
+        "width": 4080,
+        "height": 3072,
+        "format": "Dng",
+        "pixel_mode": "Default",
+        "binned": null,
+        "min_frame_duration_ns": 33333333,
+        "stall_duration_ns": 0
+      },
+      {
+        "width": 4080,
+        "height": 3072,
+        "format": "Raw16Le",
+        "pixel_mode": "Default",
+        "binned": null,
+        "min_frame_duration_ns": 33333333,
+        "stall_duration_ns": 0
+      },
+      {
+        "width": 4080,
+        "height": 2288,
+        "format": "Dng",
+        "pixel_mode": "Default",
+        "binned": null,
+        "min_frame_duration_ns": 16666666,
+        "stall_duration_ns": 0
+      },
+      {
+        "width": 4080,
+        "height": 2288,
+        "format": "Raw16Le",
+        "pixel_mode": "Default",
+        "binned": null,
+        "min_frame_duration_ns": 16666666,
+        "stall_duration_ns": 0
+      },
+      {
+        "width": 2032,
+        "height": 1536,
+        "format": "Dng",
+        "pixel_mode": "Default",
+        "binned": null,
+        "min_frame_duration_ns": 16666666,
+        "stall_duration_ns": 0
+      },
+      {
+        "width": 2032,
+        "height": 1536,
+        "format": "Raw16Le",
+        "pixel_mode": "Default",
+        "binned": null,
+        "min_frame_duration_ns": 16666666,
+        "stall_duration_ns": 0
+      },
+      {
+        "width": 2016,
+        "height": 1136,
+        "format": "Dng",
+        "pixel_mode": "Default",
+        "binned": null,
+        "min_frame_duration_ns": 16666666,
+        "stall_duration_ns": 0
+      },
+      {
+        "width": 2016,
+        "height": 1136,
+        "format": "Raw16Le",
+        "pixel_mode": "Default",
+        "binned": null,
+        "min_frame_duration_ns": 16666666,
+        "stall_duration_ns": 0
+      },
+      {
+        "width": 4032,
+        "height": 3024,
+        "format": "Jpeg",
+        "pixel_mode": "Default",
+        "binned": null,
+        "min_frame_duration_ns": 33333333,
+        "stall_duration_ns": 0
+      },
+      {
+        "width": 4000,
+        "height": 3000,
+        "format": "Jpeg",
+        "pixel_mode": "Default",
+        "binned": null,
+        "min_frame_duration_ns": 33333333,
+        "stall_duration_ns": 0
+      },
+      {
+        "width": 4032,
+        "height": 2268,
+        "format": "Jpeg",
+        "pixel_mode": "Default",
+        "binned": null,
+        "min_frame_duration_ns": 16666666,
+        "stall_duration_ns": 0
+      },
+      {
+        "width": 3840,
+        "height": 2160,
+        "format": "Jpeg",
+        "pixel_mode": "Default",
+        "binned": null,
+        "min_frame_duration_ns": 16666666,
+        "stall_duration_ns": 0
+      },
+      {
+        "width": 4000,
+        "height": 2000,
+        "format": "Jpeg",
+        "pixel_mode": "Default",
+        "binned": null,
+        "min_frame_duration_ns": 33333333,
+        "stall_duration_ns": 0
+      },
+      {
+        "width": 3264,
+        "height": 2448,
+        "format": "Jpeg",
+        "pixel_mode": "Default",
+        "binned": null,
+        "min_frame_duration_ns": 33333333,
+        "stall_duration_ns": 0
+      },
+      {
+        "width": 3264,
+        "height": 1836,
+        "format": "Jpeg",
+        "pixel_mode": "Default",
+        "binned": null,
+        "min_frame_duration_ns": 16666666,
+        "stall_duration_ns": 0
+      },
+      {
+        "width": 2560,
+        "height": 1920,
+        "format": "Jpeg",
+        "pixel_mode": "Default",
+        "binned": null,
+        "min_frame_duration_ns": 33333333,
+        "stall_duration_ns": 0
+      },
+      {
+        "width": 2688,
+        "height": 1512,
+        "format": "Jpeg",
+        "pixel_mode": "Default",
+        "binned": null,
+        "min_frame_duration_ns": 16666666,
+        "stall_duration_ns": 0
+      },
+      {
+        "width": 1920,
+        "height": 1920,
+        "format": "Jpeg",
+        "pixel_mode": "Default",
+        "binned": null,
+        "min_frame_duration_ns": 33333333,
+        "stall_duration_ns": 0
+      },
+      {
+        "width": 2560,
+        "height": 1280,
+        "format": "Jpeg",
+        "pixel_mode": "Default",
+        "binned": null,
+        "min_frame_duration_ns": 33333333,
+        "stall_duration_ns": 0
+      },
+      {
+        "width": 2048,
+        "height": 1536,
+        "format": "Jpeg",
+        "pixel_mode": "Default",
+        "binned": null,
+        "min_frame_duration_ns": 33333333,
+        "stall_duration_ns": 0
+      },
+      {
+        "width": 1920,
+        "height": 1440,
+        "format": "Jpeg",
+        "pixel_mode": "Default",
+        "binned": null,
+        "min_frame_duration_ns": 33333333,
+        "stall_duration_ns": 0
+      },
+      {
+        "width": 1920,
+        "height": 1080,
+        "format": "Jpeg",
+        "pixel_mode": "Default",
+        "binned": null,
+        "min_frame_duration_ns": 16666666,
+        "stall_duration_ns": 0
+      },
+      {
+        "width": 4080,
+        "height": 3072,
+        "format": "Jpeg",
+        "pixel_mode": "Default",
+        "binned": null,
+        "min_frame_duration_ns": 33333333,
+        "stall_duration_ns": 0
+      }
+    ],
+    "preview_streams": [
+      {
+        "width": 176,
+        "height": 144,
+        "format": "Rgb8",
+        "pixel_mode": "Default",
+        "binned": null,
+        "min_frame_duration_ns": 33333333,
+        "stall_duration_ns": 0
+      },
+      {
+        "width": 320,
+        "height": 240,
+        "format": "Rgb8",
+        "pixel_mode": "Default",
+        "binned": null,
+        "min_frame_duration_ns": 33333333,
+        "stall_duration_ns": 0
+      },
+      {
+        "width": 352,
+        "height": 288,
+        "format": "Rgb8",
+        "pixel_mode": "Default",
+        "binned": null,
+        "min_frame_duration_ns": 33333333,
+        "stall_duration_ns": 0
+      },
+      {
+        "width": 640,
+        "height": 360,
+        "format": "Rgb8",
+        "pixel_mode": "Default",
+        "binned": null,
+        "min_frame_duration_ns": 16666666,
+        "stall_duration_ns": 0
+      },
+      {
+        "width": 640,
+        "height": 480,
+        "format": "Rgb8",
+        "pixel_mode": "Default",
+        "binned": null,
+        "min_frame_duration_ns": 33333333,
+        "stall_duration_ns": 0
+      },
+      {
+        "width": 720,
+        "height": 480,
+        "format": "Rgb8",
+        "pixel_mode": "Default",
+        "binned": null,
+        "min_frame_duration_ns": 33333333,
+        "stall_duration_ns": 0
+      },
+      {
+        "width": 800,
+        "height": 600,
+        "format": "Rgb8",
+        "pixel_mode": "Default",
+        "binned": null,
+        "min_frame_duration_ns": 33333333,
+        "stall_duration_ns": 0
+      },
+      {
+        "width": 1024,
+        "height": 576,
+        "format": "Rgb8",
+        "pixel_mode": "Default",
+        "binned": null,
+        "min_frame_duration_ns": 16666666,
+        "stall_duration_ns": 0
+      },
+      {
+        "width": 1280,
+        "height": 720,
+        "format": "Rgb8",
+        "pixel_mode": "Default",
+        "binned": null,
+        "min_frame_duration_ns": 16666666,
+        "stall_duration_ns": 0
+      }
+    ],
+    "wb_modes": [
+      "auto",
+      "incandescent",
+      "fluorescent",
+      "warm_fluorescent",
+      "daylight",
+      "cloudy_daylight",
+      "twilight",
+      "shade"
+    ],
+    "wb_kelvin": null,
+    "wb_tint": null,
+    "wb_gain_x1000": null,
+    "processing_modes": {
+      "aberration": [
+        "off"
+      ],
+      "distortion": [
+        "off",
+        "fast"
+      ],
+      "edge": [
+        "off",
+        "fast",
+        "high_quality"
+      ],
+      "hot_pixel": [
+        "off",
+        "fast",
+        "high_quality"
+      ],
+      "noise_reduction": [
+        "off",
+        "fast",
+        "high_quality"
+      ],
+      "shading": [
+        "off",
+        "fast",
+        "high_quality"
+      ],
+      "tonemap": [
+        "fast",
+        "high_quality"
+      ]
+    },
+    "ois_modes": [
+      "off",
+      "on"
+    ],
+    "eis_modes": [
+      "off",
+      "on"
+    ]
+  },
+  "frames": [
+    {
+      "filename": "lights/ISO16_2026-09-11T183449Z_L_0000.dng",
+      "size_bytes": 25107216,
+      "timestamp_ns": 325019902274358,
+      "sha256": "568ead501fc5236bbfeb85f9b4a34f6816f074ebcce7f6b9ebf38ae1b67c9db8",
+      "metadata": {
+        "frame_id": "000000",
+        "camera_id": "0",
+        "exposure_requested_ns": 16000000000,
+        "exposure_reported_ns": 15999539968,
+        "sensitivity_requested": 100,
+        "sensitivity_reported": 100,
+        "timestamp_ns": 325019902274358,
+        "physical_camera_id": "2",
+        "request_id": null,
+        "sequence_id": null,
+        "frame_number": 0,
+        "received_at_unix_ns": 1789151720946824800,
+        "clock_offset_ns": null,
+        "clock_uncertainty_ns": null,
+        "width": 4080,
+        "height": 3072,
+        "pixel_format": "Dng",
+        "row_stride_bytes": null,
+        "bits_per_sample": null,
+        "byte_order": null,
+        "cfa_pattern": null,
+        "black_levels": null,
+        "white_level": null,
+        "active_area": null,
+        "color_matrix": null,
+        "calibration_illuminant": null,
+        "frame_duration_requested_ns": null,
+        "frame_duration_reported_ns": 16009674981,
+        "focus_requested_diopters": 0.0,
+        "focus_reported_diopters": 0.0,
+        "focus_mode": "manual",
+        "white_balance_mode": "daylight",
+        "white_balance_gains": null,
+        "white_balance_transform": null,
+        "crop_region": [
+          0,
+          0,
+          4080,
+          3072
+        ],
+        "zoom_requested": null,
+        "zoom_reported": 1.0,
+        "ois_mode": "off",
+        "processing_modes": {
+          "aberration": "off",
+          "distortion": "off",
+          "edge": "off",
+          "hot_pixel": "high_quality",
+          "noise_reduction": "off",
+          "shading": "high_quality",
+          "tonemap": "fast"
+        },
+        "sensor_temperature_c": null,
+        "device_temperature_c": null,
+        "orientation_degrees": null,
+        "calibration_kind": null,
+        "app_version": "0.1.0",
+        "protocol_version": "1",
+        "android_version": null,
+        "config_version": 1,
+        "warnings": [],
+        "extra": {
+          "identity": "Google Pixel 8 Pro / Android 17",
+          "origin": "Device",
+          "timestamp_domain": "Android elapsedRealtimeNanos"
+        }
+      }
+    }
+  ],
+  "warnings": [],
+  "errors": [],
+  "thermal_events": [
+    {
+      "at_unix_ns": 1789151689254850100,
+      "severity": "nominal",
+      "temperature_c": null
+    }
+  ],
+  "preview_png": {
+    "filename": "preview.png",
+    "size_bytes": 404612,
+    "sha256": "2e2135bcf0edb1bdce11587d931ad589ad109230896d2420e718f255ae8ff452"
+  }
+}

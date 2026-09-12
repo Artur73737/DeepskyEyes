@@ -31,8 +31,9 @@ use crate::{
     source::Source,
 };
 
-/// Settle delay between sequence frames (README example: 1 s).
-const SETTLE_DELAY_NS: u64 = 1_000_000_000;
+/// No hidden pause between scientific frames. Readout, USB and durable disk
+/// writes still consume real time independently of sensor exposure.
+const SETTLE_DELAY_NS: u64 = 0;
 /// Re-read device heat at most every N committed frames.
 const THERMAL_EVERY_FRAMES: u32 = 10;
 
@@ -69,6 +70,7 @@ struct ActiveRun {
     capture: Option<CaptureInFlight>,
     /// Stop requested mid-exposure: honored as soon as the frame lands.
     pending_stop: bool,
+    pending_pause: bool,
 }
 
 /// A frame exposing off the worker thread. The thread owns the backend link;
@@ -120,6 +122,7 @@ struct Worker {
     destination: PathBuf,
     auto_save: bool,
     run: Option<ActiveRun>,
+    last_sequence: Option<(SequenceStatus, u32, u32)>,
     message: String,
     device_label: String,
     frame_progress: Option<f32>,
@@ -167,6 +170,7 @@ impl Worker {
             destination: crate::controller::default_capture_dir(),
             auto_save: true,
             run: None,
+            last_sequence: None,
             message: String::new(),
             device_label: "No device connected".into(),
             frame_progress: None,
@@ -209,6 +213,7 @@ impl Worker {
             UiAction::SetFocus(diopters) => self.set_focus(diopters),
             UiAction::AutofocusCenter => {
                 if self.run.is_some() { self.fail("stop the sequence before autofocus".into()); }
+                else if !self.backend_ready() { self.fail("connect and open a camera first".into()); }
                 else if let Some(backend) = self.backend.as_mut() {
                     match backend.autofocus_center() {
                         Ok(distance) => {
@@ -239,6 +244,7 @@ impl Worker {
                     self.fail("frame count must be positive".into());
                 } else {
                     self.frames_total = n;
+                    self.last_sequence = None;
                     self.message.clear();
                 }
             }
@@ -357,15 +363,29 @@ impl Worker {
             let _ = backend.close();
         }
         self.caps.clear();
+        self.last_sequence = None;
         self.camera_id.clear();
         self.open_camera_id = None;
         self.outcome = None;
+        // Drop any in-flight preview: its thread owns the old backend and
+        // must not resurrect it after the link was closed. The send fails
+        // silently and the stale backend is dropped in that thread.
+        self.preview_in_flight = None;
+        self.preview_started = None;
         self.device_label = "No device connected".into();
         self.preview = None;
         self.histogram.clear();
         self.preview_mean = None;
         self.frame_progress = None;
         self.message = "disconnected".into();
+    }
+
+    /// Reclaim the backend if its preview frame already landed
+    /// (non-blocking), then report whether the camera link is usable.
+    /// The link lives in the preview thread while a frame is in flight.
+    fn backend_ready(&mut self) -> bool {
+        self.poll_preview();
+        self.backend.is_some()
     }
 
     /// Close the camera if the worker opened one. Run paths call this before
@@ -388,7 +408,7 @@ impl Worker {
         if self.open_camera_id.as_deref() == Some(id.as_str()) {
             self.camera_id = id.clone();
             self.message = format!("camera {id} already open");
-            self.refresh_preview();
+            self.kick_preview();
             return;
         }
         if !self.caps.iter().any(|c| c.camera_id == id) {
@@ -400,7 +420,7 @@ impl Worker {
             return;
         }
         let caps = self.caps.iter().find(|c| c.camera_id == id).unwrap().clone();
-        if self.backend.is_none() {
+        if !self.backend_ready() {
             self.fail("not connected".into());
             return;
         }
@@ -424,7 +444,7 @@ impl Worker {
                 self.outcome = Some(outcome);
                 self.live_backoff = 0;
                 self.message = format!("camera {id} open, live preview on");
-                self.refresh_preview();
+                self.kick_preview();
             }
             Err(e) => {
                 let _ = backend.close();
@@ -562,8 +582,8 @@ impl Worker {
         }
     }
 
-    fn require_open(&self) -> Result<&CameraCapabilities, String> {
-        if self.backend.is_none() {
+    fn require_open(&mut self) -> Result<&CameraCapabilities, String> {
+        if !self.backend_ready() {
             return Err("not connected".into());
         }
         self.open_caps().ok_or_else(|| "select a camera first".into())
@@ -603,7 +623,9 @@ impl Worker {
         // Freeze the selected manual distance for the run, independently of
         // the UI edit lock. Do not change the requested focus distance.
         self.focus_locked = true;
-        let opts = self.options(self.frames_total);
+        let mut opts = self.options(self.frames_total);
+        // Preview magnification must never crop scientific captures.
+        opts.zoom_x1000 = caps.zoom_x1000.filter(|r| r.min <= 1000 && r.max >= 1000).map(|_| 1000);
         if let Err(e) = self.ensure_closed() {
             self.fail(e);
             return;
@@ -625,6 +647,7 @@ impl Worker {
         }
         self.outcome = Some(prepared.outcome.clone());
         self.open_camera_id = Some(caps.camera_id.clone());
+        self.last_sequence = None;
         self.run = Some(ActiveRun {
             runner,
             prepared,
@@ -632,6 +655,7 @@ impl Worker {
             since_thermal: 0,
             capture: None,
             pending_stop: false,
+            pending_pause: false,
         });
         self.message = format!("sequence started: {} frame(s)", self.frames_total);
     }
@@ -643,7 +667,7 @@ impl Worker {
         }
         if !self.auto_save {
             // Preview-only path: no file is written and the message says so.
-            self.refresh_preview();
+            self.kick_preview();
             if self.preview.is_some() {
                 self.message = "preview only: auto-save off, nothing written".into();
             }
@@ -667,7 +691,8 @@ impl Worker {
                 return;
             }
         };
-        let opts = self.options(1);
+        let mut opts = self.options(1);
+        opts.zoom_x1000 = caps.zoom_x1000.filter(|r| r.min <= 1000 && r.max >= 1000).map(|_| 1000);
         if let Err(e) = self.ensure_closed() {
             self.fail(e);
             return;
@@ -702,7 +727,7 @@ impl Worker {
             Ok(sha) => {
                 self.outcome = Some(prepared.outcome.clone());
                 self.message = format!("1 frame committed to {} (sha256 {sha})", prepared.session_dir.display());
-                self.refresh_preview();
+                self.kick_preview();
             }
             Err(e) => self.fail(e.to_string()),
         }
@@ -714,7 +739,13 @@ impl Worker {
             return;
         };
         if op == "pause" && run.capture.is_some() {
-            self.fail("frame exposing, wait for frame end".into());
+            run.pending_pause = true;
+            self.message = "pause requested: finishing and saving current frame".into();
+            return;
+        }
+        if op == "resume" && run.pending_pause {
+            run.pending_pause = false;
+            self.message = "pending pause cancelled".into();
             return;
         }
         let result = match op {
@@ -732,9 +763,14 @@ impl Worker {
         match result {
             Ok(message) => {
                 if op == "stop" {
-                    let run = self.run.take().expect("active");
-                    let _ = self.abort_run(run, "stopped by user");
-                    self.message = "sequence stopped".into();
+                    if self.run.as_ref().is_some_and(|run| run.capture.is_some()) {
+                        self.message = "stopping after current frame is saved".into();
+                    } else {
+                        let run = self.run.take().expect("active");
+                        self.last_sequence = Some((SequenceStatus::Idle, run.runner.progress().done, run.runner.progress().total));
+                        let _ = self.abort_run(run, "stopped by user");
+                        self.message = "sequence stopped".into();
+                    }
                 } else {
                     self.message = format!("sequence {message}");
                 }
@@ -767,10 +803,20 @@ impl Worker {
         let mut run = self.run.take().expect("step implies active");
         if run.capture.is_none() && run.pending_stop {
             let _ = run.runner.stop();
+            self.last_sequence = Some((SequenceStatus::Idle, run.runner.progress().done, run.runner.progress().total));
             let _ = self.abort_run(run, "stopped by user");
             self.outcome = None;
             self.message = "sequence stopped".into();
             self.frame_progress = None;
+            return;
+        }
+        if run.capture.is_none() && run.pending_pause {
+            run.pending_pause = false;
+            match run.runner.pause() {
+                Ok(()) => self.message = "sequence paused after saving current frame".into(),
+                Err(error) => self.message = format!("pause: {error}"),
+            }
+            self.run = Some(run);
             return;
         }
         let outcome = self.step_frame(&mut run);
@@ -783,13 +829,16 @@ impl Worker {
                 self.run = Some(run);
             }
             StepOutcome::Finished(message) => {
+                self.last_sequence = Some((SequenceStatus::Completed, run.runner.progress().done, run.runner.progress().total));
                 let _ = run.prepared.disk.shutdown();
                 self.outcome = Some(run.prepared.outcome.clone());
                 self.message = message;
                 self.frame_progress = None;
+                self.controls_changed = Some(Instant::now() - Duration::from_millis(150));
                 // The idle loop resumes live view asynchronously.
             }
             StepOutcome::Failed(message) => {
+                self.last_sequence = Some((SequenceStatus::Failed, run.runner.progress().done, run.runner.progress().total));
                 let _ = self.abort_run(run, &message);
                 self.outcome = None;
                 self.message = message;
@@ -943,10 +992,13 @@ impl Worker {
         }
     }
 
-    fn refresh_preview(&mut self) {
-        let Some(backend) = self.backend.as_mut() else { return };
-        let result = backend.preview();
-        self.accept_preview(result);
+    /// Non-blocking preview kick for UI-triggered paths. Starts the live
+    /// chain once; the worker loop chains the following frames. No-op while
+    /// a frame is in flight or a frame is already cached.
+    fn kick_preview(&mut self) {
+        if self.preview.is_none() && self.preview_in_flight.is_none() {
+            self.start_preview();
+        }
     }
 
     fn start_preview(&mut self) {
@@ -1057,7 +1109,7 @@ impl Worker {
                 None => {}
             }
         }
-        self.refresh_preview();
+        self.kick_preview();
         self.update_mbps();
     }
 
@@ -1149,7 +1201,10 @@ impl Worker {
         };
         let mut snap = UiSnapshot::default();
         let capturing = self.run.as_ref().is_some_and(|run| run.capture.is_some());
+        // Snapshot construction must not consume an asynchronous result: only
+        // the loop polls it, otherwise completion/retry scheduling is lost.
         snap.connected = self.backend.is_some() || capturing || self.preview_in_flight.is_some();
+        snap.source = self.source;
         snap.device = self
             .backend
             .as_ref()
@@ -1200,14 +1255,25 @@ impl Worker {
         snap.frames_done = done;
         snap.frames_total = total;
         snap.sequence = sequence;
+        if self.run.is_none() {
+            if let Some((status, done, total)) = self.last_sequence {
+                snap.sequence = status;
+                snap.frames_done = done;
+                // Keep the editable next-run count independent of the previous
+                // run; show that run's total only until the user changes it.
+                if self.frames_total == total { snap.frames_total = total; }
+            }
+        }
         snap.frame_progress = self.frame_progress;
-        if let Some(started) = self.preview_started {
+        // An exposing capture wins over any in-flight live preview: the
+        // footer must show the scientific frame, never a stale preview timer.
+        if let Some(capture) = self.run.as_ref().and_then(|run| run.capture.as_ref()) {
+            snap.frame_elapsed_s = Some(capture.started.elapsed().as_secs_f32());
+            snap.frame_exposure_s = Some(capture.exposure_s);
+        } else if let Some(started) = self.preview_started {
             snap.frame_progress = Some((started.elapsed().as_secs_f32() / self.preview_exposure_s.max(0.000001)).min(1.0));
             snap.frame_elapsed_s = Some(started.elapsed().as_secs_f32());
             snap.frame_exposure_s = Some(self.preview_exposure_s);
-        } else if let Some(capture) = self.run.as_ref().and_then(|run| run.capture.as_ref()) {
-            snap.frame_elapsed_s = Some(capture.started.elapsed().as_secs_f32());
-            snap.frame_exposure_s = Some(capture.exposure_s);
         }
         snap.frame_type = self.frame_kind;
         snap.preview = self.preview.clone();
@@ -1240,7 +1306,9 @@ impl Worker {
         snap.storage_free = "unknown (not queryable portably)".into();
         snap.destination = self.destination.display().to_string();
         snap.auto_save = self.auto_save;
-        snap.message = std::mem::take(&mut self.message);
+        // Keep errors visible until the next operation updates them; snapshot
+        // coalescing must not swallow a rejection in a single 16 ms tick.
+        snap.message = self.message.clone();
         snap
     }
 }
@@ -1386,6 +1454,124 @@ fn push_action(pending: &mut Vec<UiAction>, action: UiAction) {
 mod tests {
     use super::*;
 
+    /// Explicit opt-in only: captures real photographs, writes verified RAWs
+    /// to the supplied PC directory and never falls back to a simulator.
+    #[test]
+    #[ignore = "requires DEEPSKY_TEST_SERIAL and DEEPSKY_TEST_OUT, physical camera and running Android service"]
+    fn hardware_pc_controls_autofocus_and_full_raw() {
+        use deepsky_camera::model::{CameraSelection, FocusRequest, Origin, PixelFormat};
+        let serial = std::env::var("DEEPSKY_TEST_SERIAL").expect("explicit physical serial required");
+        let root = PathBuf::from(std::env::var("DEEPSKY_TEST_OUT").expect("explicit capture directory required"));
+        let mut backend = connect_source(&Source::Adb(Some(serial))).unwrap();
+        let caps = backend.discover().unwrap().into_iter().find(|c| c.camera_id == "0").expect("camera 0");
+        assert_eq!(caps.origin, Some(Origin::Device));
+        backend.open(&CameraSelection { camera_id: caps.camera_id.clone(), physical_id: None }).unwrap();
+        let mut opts = AcquisitionOptions { out_dir: root, project: "SHELL_VERIFICATION".into(), frames: 1,
+            calibration: SessionKind::Test, exposure_ns: 10_000_000, sensitivity: 100, delay_ns: 0,
+            zoom_x1000: Some(1000), ..Default::default() };
+        for (exposure, iso) in [(10_000_000,100), (50_000_000,800)] {
+            opts.exposure_ns = exposure; opts.sensitivity = iso;
+            let request = build_request(&caps, &opts.spec()).unwrap();
+            backend.configure(&request, ValidationPolicy::Reject).unwrap();
+            let preview = backend.preview().unwrap();
+            assert_eq!(preview.origin, Origin::Device);
+            assert_eq!(preview.format, PixelFormat::Rgb8);
+            assert_eq!(preview.payload.len(), preview.width as usize * preview.height as usize * 3);
+            let actual = preview.reported_exposure_ns.expect("reported exposure");
+            assert!(actual.abs_diff(exposure) <= exposure/100 + 50_000, "exposure {actual} != {exposure}");
+            assert!(preview.reported_sensitivity.unwrap().abs_diff(iso as u64) <= 2);
+            println!("REAL preview {}x{} exposure={}ns ISO={:?}",preview.width,preview.height,actual,preview.reported_sensitivity);
+        }
+        opts.focus_millidiopters = backend.autofocus_center().expect("real center AF must lock");
+        println!("REAL autofocus locked: {} millidiopters",opts.focus_millidiopters);
+        backend.close().unwrap();
+        for exposure in [1_000_000_000,16_000_000_000] {
+            opts.exposure_ns = exposure;
+            let now = now_unix_ns().unwrap();
+            let mut prepared = prepare_run(&mut *backend,&caps,&opts,now).unwrap();
+            let started = Instant::now();
+            let frame = backend.capture().unwrap();
+            let elapsed = started.elapsed().as_secs_f64();
+            assert_eq!(frame.metadata.origin,Origin::Device);
+            let reported = &frame.metadata.reported;
+            let stream = reported.stream.as_ref().unwrap();
+            assert_eq!((stream.width,stream.height),(prepared.stream.width,prepared.stream.height));
+            assert!(reported.exposure_ns.unwrap().abs_diff(exposure) <= exposure/100 + 50_000);
+            assert!(elapsed >= exposure as f64 / 1e9 * 0.95, "premature frame: {elapsed}s");
+            let FocusRequest::Manual { millidiopters, .. } = reported.focus.as_ref().expect("reported manual focus") else { panic!("focus is not manual after AF lock") };
+            assert!(millidiopters.abs_diff(opts.focus_millidiopters) <= 50, "AF distance was not retained");
+            if let Some(zoom) = reported.zoom_x1000 { assert_eq!(zoom,1000,"RAW must not use preview zoom"); }
+            let bytes = frame.payload.len();
+            let record = submit_frame(&prepared.disk,&prepared.outcome,&prepared.stream,&frame.metadata,frame.payload,&prepared.ctx,0,now).unwrap();
+            prepared.store.record_frame(record).unwrap();
+            prepared.disk.shutdown().unwrap();
+            assert_eq!(prepared.store.scan().unwrap().verified.len(),1);
+            println!("REAL RAW {}x{} {} bytes exposure={}ns cycle={elapsed:.3}s checksum verified: {}",
+                stream.width,stream.height,bytes,reported.exposure_ns.unwrap(),prepared.session_dir.display());
+            backend.close().unwrap();
+        }
+    }
+
+    #[test]
+    fn stopping_mid_exposure_preserves_link_and_current_raw() {
+        let mut worker = Worker::new();
+        worker.connect_with(Source::Simulator { realtime: true });
+        wait_backend(&mut worker, "stop-in-flight");
+        worker.destination = std::env::temp_dir().join(format!("deepsky-stop-test-{}", now_unix_ns().unwrap()));
+        worker.frames_total = 3;
+        worker.set_exposure(100_000_000);
+        worker.start_sequence();
+        let session = worker.run.as_ref().expect("sequence starts").prepared.session_dir.clone();
+        worker.step();
+        assert!(worker.run.as_ref().unwrap().capture.is_some());
+        worker.pause_resume_stop("stop");
+        assert!(worker.run.as_ref().unwrap().pending_stop);
+        let deadline = Instant::now() + Duration::from_secs(5);
+        while worker.run.is_some() {
+            assert!(Instant::now() < deadline, "stop did not finish: {}", worker.message);
+            worker.step();
+            std::thread::sleep(Duration::from_millis(2));
+        }
+        assert!(worker.backend.is_some(), "stop must return the camera link");
+        let store = SessionStore::open(session).unwrap();
+        assert_eq!(store.manifest().frames_completed, 1);
+        assert_eq!(store.scan().unwrap().verified.len(), 1);
+        worker.disconnect();
+    }
+
+    #[test]
+    fn pause_mid_frame_then_resume_completes_without_losing_progress() {
+        let mut worker = Worker::new();
+        worker.connect_with(Source::Simulator { realtime: true });
+        wait_backend(&mut worker, "pause-in-flight");
+        worker.destination = std::env::temp_dir().join(format!("deepsky-pause-test-{}", now_unix_ns().unwrap()));
+        worker.frames_total = 2;
+        worker.set_exposure(100_000_000);
+        worker.start_sequence();
+        let session = worker.run.as_ref().unwrap().prepared.session_dir.clone();
+        worker.step();
+        worker.pause_resume_stop("pause");
+        let deadline = Instant::now() + Duration::from_secs(5);
+        while worker.run.as_ref().unwrap().runner.state() != SequenceState::Paused {
+            assert!(Instant::now() < deadline, "pause stalled");
+            worker.step();
+            std::thread::sleep(Duration::from_millis(2));
+        }
+        assert_eq!(worker.snapshot().frames_done,1);
+        worker.step();
+        assert_eq!(worker.snapshot().frames_done,1,"no exposure while paused");
+        worker.pause_resume_stop("resume");
+        while worker.run.is_some() {
+            assert!(Instant::now() < deadline,"resume stalled");
+            worker.step();
+            std::thread::sleep(Duration::from_millis(2));
+        }
+        assert_eq!(worker.snapshot().sequence,SequenceStatus::Completed);
+        assert_eq!(worker.snapshot().frames_done,2);
+        assert_eq!(SessionStore::open(session).unwrap().scan().unwrap().verified.len(),2);
+        worker.disconnect();
+    }
+
     #[test]
     fn coalesces_drag_without_crossing_capture_barrier() {
         let mut pending = Vec::new();
@@ -1401,7 +1587,14 @@ mod tests {
         let mut worker = Worker::new();
         worker.connect_with(Source::Simulator { realtime: false });
         assert!(worker.open_camera_id.is_some(), "{}", worker.message);
-        assert!(worker.preview.is_some(), "{}", worker.message);
+        // Live preview is async: poll until the first frame lands.
+        let deadline = Instant::now() + Duration::from_secs(5);
+        while worker.preview.is_none() {
+            assert!(Instant::now() < deadline, "preview stalled: {}", worker.message);
+            if !worker.poll_preview() {
+                std::thread::yield_now();
+            }
+        }
         worker.disconnect();
         assert!(worker.preview.is_none());
         assert!(worker.histogram.is_empty());
@@ -1445,6 +1638,29 @@ mod tests {
         assert_eq!(worker.message, "exposure range not announced");
         worker.set_zoom(0.5);
         assert!(worker.message.contains("outside announced range"));
+        let first = worker.snapshot().message;
+        assert!(!first.is_empty());
+        assert_eq!(worker.snapshot().message,first,"coalesced snapshots must preserve control rejection");
+    }
+
+    /// Live preview is asynchronous: spin until the kicked frame lands.
+    #[cfg(test)]
+    fn wait_preview(worker: &mut Worker, what: &str) {
+        let deadline = Instant::now() + Duration::from_secs(10);
+        while worker.preview.is_none() {
+            assert!(Instant::now() < deadline, "{what} preview stalled: {}", worker.message);
+            if !worker.poll_preview() {
+                std::thread::yield_now();
+            }
+        }
+    }
+
+    /// The camera link lives in the preview thread while a frame is in
+    /// flight: wait until it is handed back before issuing commands.
+    #[cfg(test)]
+    fn wait_backend(worker: &mut Worker, what: &str) {
+        wait_preview(worker, what);
+        assert!(worker.backend.is_some(), "{what}: simulator must connect");
     }
 
     #[test]
@@ -1453,13 +1669,13 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
         let mut worker = Worker::new();
         worker.connect_with(Source::Simulator { realtime: false });
-        assert!(worker.backend.is_some(), "simulator must connect");
+        wait_backend(&mut worker, "preview-pipeline");
         let id = worker.camera_id.clone();
         assert!(!id.is_empty(), "discovery must pick a camera");
         worker.select_camera(id);
         worker.destination = dir.clone();
         worker.capture_one();
-        assert!(worker.preview.is_some(), "preview image missing: {}", worker.message);
+        wait_preview(&mut worker, "capture");
         assert_eq!(worker.histogram.len(), 768, "RGB histogram expected");
         assert!(worker.preview_mean.is_some(), "preview mean missing");
         assert_eq!(worker.preview_failures, 0, "message: {}", worker.message);
@@ -1474,9 +1690,11 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
         let mut worker = Worker::new();
         worker.connect_with(Source::Simulator { realtime: false });
+        wait_backend(&mut worker, "reopen");
         let id = worker.camera_id.clone();
         worker.select_camera(id.clone());
         assert_eq!(worker.open_camera_id.as_deref(), Some(id.as_str()));
+        wait_preview(&mut worker, "select");
         assert!(worker.preview.is_some(), "live preview must start on select: {}", worker.message);
         // Selecting again is a no-op, not a double open.
         worker.select_camera(id.clone());
@@ -1484,7 +1702,7 @@ mod tests {
         // A capture closes first, then prepares fresh: no InvalidState.
         worker.destination = dir.clone();
         worker.capture_one();
-        assert!(worker.preview.is_some(), "capture must succeed after select: {}", worker.message);
+        wait_preview(&mut worker, "capture-after-select");
         let _ = std::fs::remove_dir_all(&dir);
     }
 
@@ -1494,7 +1712,7 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
         let mut worker = Worker::new();
         worker.connect_with(Source::Simulator { realtime: true });
-        assert!(worker.backend.is_some(), "simulator must connect");
+        wait_backend(&mut worker, "progress");
         worker.destination = dir.clone();
         worker.frames_total = 1;
         worker.set_exposure(2_000_000_000);
