@@ -203,7 +203,7 @@ affermazioni (Kelvin ignorato, AF atteso Unsupported, DNG binnato annunciato).
 - [x] WB incandescent, fluorescent, warm_fluorescent, cloudy_daylight acquisiti.
 - [x] Cinque preview consecutive; JPEG reale via template JSON + execute.
 - [x] Execute rifiuta di sovrascrivere file esistenti.
-- [x] Strict-results: exit 1 dopo frame conservato (capture singolo; interruzione sequenza multipla da verificare separatamente).
+- [x] Strict-results: capture singolo e sequenza 3 frame; nella sequenza salva 1, ferma i restanti 2, exit 1 e integrità true (STRICT_SEQUENCE_2026-09-12T124048Z_960620900).
 - [x] Sequenza 30x1s: 30/30, tre campioni termici nominali, tutti gli hash verificati.
 - [x] Massimo esposizione: scatto riuscito; comando con preview finale 50.422s.
 - [x] Ultima matrice: 37 invocazioni con exit atteso, evidenze CLI_AUDIT_20260912_143339_623/results.json.
@@ -213,3 +213,43 @@ affermazioni (Kelvin ignorato, AF atteso Unsupported, DNG binnato annunciato).
 
 Evidenze della prima matrice: `Rust_App/target/release/captures/CLI_AUDIT_20260912_143032_129/results.json`.
 Ripetizione: `powershell -File doc/cli-regression.ps1` (produce fotografie vere in una nuova cartella).
+
+## Handoff — interruzione richiesta dall'utente, 2026-09-12
+
+### Attività appena iniziata, NON implementata
+
+- [x] Riletto stato worktree, fine report, modello Rust e validazione/discovery/risultati Kotlin; ADB vede il Pixel autorizzato.
+- [ ] Prossimo sviluppo previsto: controlli JPEG tipizzati (quality, orientation, thumbnailQuality, thumbnailSize), disponibili via richiesta JSON CLI, validati contro discovery e riportati nei risultati. Nessuna modifica al codice effettuata in questa continuazione.
+- [ ] JPEG: verificare disponibilità delle singole chiavi; qualità 1..100 e rifiuto 0/101; orientamenti 0/90/180/270 e rifiuto valori invalidi; thumbnail solo nelle dimensioni annunciate, inclusa disabilitazione se annunciata.
+- [ ] JPEG: confrontare requested/applied/reported e metadati del file reale, dimensioni/orientamento effettivi, thumbnail, qualità; rifiutare controlli JPEG su RAW invece di ignorarli.
+- [ ] Aggiungere test unitari Rust/Kotlin per ogni nuovo campo, unknown fields, valori mancanti, limiti e compatibilità dei vecchi JSON senza campi nuovi.
+
+### Controlli pubblici ancora da implementare e verificare
+
+Per ogni voce: discovery reale → validazione tipizzata → richiesta CLI/Kotlin → CaptureResult → file/sidecar → errore esplicito se non supportato. Una chiave presente nel dump NON prova che sia controllabile o rispettata.
+
+- [ ] AE auto/manuale, compensazione, antibanding, lock, precapture, regioni e FPS range: combinazioni coerenti, niente valori manuali dichiarati applicati mentre AE li ignora; mantenere preflight scientifico deterministico.
+- [ ] AWB lock, gains/matrice e temperatura/tint soltanto se supportati e implementati; test preset/auto diagnostico e rifiuti scientifici.
+- [ ] Effetti, scene/extended scene, ZSL, post-RAW sensitivity boost: disponibilità e riscontro reale, nessuna attivazione implicita nelle sequenze RAW.
+- [ ] Flash e intensità: solo valori annunciati, ripristino off, effetti reali e metadati.
+- [ ] Apertura, focale e filter density: distinguere elenco selezionabile da valore fisso/non modificabile; nessuna deduzione ottica dagli ID.
+- [ ] Black-level lock, statistiche face/hot-pixel/OIS, curve tonemap: tipi, limiti e metadati; nessuna simulazione di risultati mancanti.
+- [ ] Routing fisico: capacità per sensore, combinazioni di stream consentite, sensore attivo riportato; rifiuto esplicito dei routing non implementati.
+- [~] Chiavi private Google: inventario sì; niente valori tentativi, token proxy o bypass termici. Dichiarare i limiti, non promettere controllo totale.
+
+### Verifiche di sistema ancora aperte (oltre ai PASS storici sopra)
+
+- [ ] Ripetere doc/cli-regression.ps1 -Long dopo modifiche, con release CLI/APK finali; installazione ADB, avvio START_BRIDGE e verifica dump aggiornato.
+- [ ] Autofocus su entrambe le camere, ripetibilità, distanza manuale mantenuta fra scatti, stato lente e stabilità; autofocus su stelle richiede scena idonea, non dedurlo da un test indoor.
+- [ ] Esposizione minima/massima per ogni camera e formato supportato; ISO estremi; confronto timestamp/cadenza, delay zero e 1s, almeno tre frame per configurazione.
+- [ ] Processing: ogni modo annunciato, separatamente e nelle combinazioni pertinenti; distinguere effetti su JPEG/preview e RAW. Hot-pixel/shading forzati dall'HAL già rilevati, non considerarli risolti.
+- [ ] Zoom minimo/massimo, crop e tutti gli stream RAW16/DNG/JPEG annunciati: nessun fallback o ritaglio software; controllare i limiti di DngCreator e i dati Bayer nei formati ridotti.
+- [ ] DNG: CFA, black/white level, matrici e apertura in strumenti RAW; confronto RAW16/DNG e statistiche/linearità/noise su scena controllata.
+- [ ] Tutti i tipi light/dark/flat/bias/test, nomi/path problematici, destinazione non scrivibile/disco pieno, overwrite vietato, file incompleti e sidecar mancanti/corrotti.
+- [ ] Crash/interruzione CLI a metà sequenza e verifica integrità/session-inspect; implementare/verificare resume sicuro se previsto, non chiamare scan un resume.
+- [ ] Disconnessione USB, morte processo Android, concorrenza client, timeout e riconnessione: errori espliciti, nessun RAW perso o duplicato silenziosamente.
+- [ ] Screen-off/blocco/Doze durante sequenza, lifecycle servizio, consumi e memoria; prove lunghe 1/2/4 ore e 300x15s ancora NON eseguite in questa verifica.
+- [ ] Manifest: termico periodico, warning/errori e richiesto/applicato/riportato completi; soglie termiche rispettate, temperatura sconosciuta resta null.
+- [ ] Build/test Rust workspace con feature desktop, unit test Kotlin, lint release, release finali e confronto sorgenti/binari dopo tutte le modifiche.
+
+Stato al fermo: nessun nuovo test hardware avviato in questa continuazione; soltanto letture. Non riprendere automaticamente contro la richiesta di stop dell'utente.

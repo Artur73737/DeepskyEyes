@@ -49,6 +49,22 @@ pub struct CameraCapabilities {
     pub wb_gain_x1000: Option<ValueRange>,
     pub processing_modes: BTreeMap<String, Vec<String>>,
     pub ois_modes: Vec<String>, pub eis_modes: Vec<String>,
+    /// Thumbnail sizes from `JPEG_AVAILABLE_THUMBNAIL_SIZES`, in device order.
+    /// Empty means unknown (old dumps), not "no thumbnails".
+    #[serde(default)] pub jpeg_thumbnail_sizes: Vec<JpegSize>,
+}
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct JpegSize { pub width: u32, pub height: u32 }
+/// Typed JPEG output controls (Camera2 `android.jpeg.*`). Every field is optional:
+/// absent means "HAL default", never an inferred value. Only meaningful with a
+/// JPEG stream; setting any of them on RAW/other streams is rejected outright.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct JpegSettings {
+    #[serde(default)] pub quality: Option<u8>,
+    #[serde(default)] pub orientation: Option<u16>,
+    #[serde(default)] pub thumbnail_quality: Option<u8>,
+    #[serde(default)] pub thumbnail_size: Option<JpegSize>,
 }
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CropRect { pub x: u32, pub y: u32, pub width: u32, pub height: u32 }
@@ -63,6 +79,7 @@ pub struct CaptureSettings {
     pub focus: Option<FocusRequest>, pub zoom_x1000: Option<u64>, pub crop: Option<CropRect>,
     pub stream: Option<StreamConfiguration>, pub white_balance: Option<WhiteBalanceRequest>,
     pub processing: BTreeMap<String, String>, pub ois: Option<String>, pub eis: Option<String>,
+    #[serde(default)] pub jpeg: Option<JpegSettings>,
 }
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -152,6 +169,31 @@ impl CameraCapabilities {
         }
         for (key, value) in &s.processing { mode(key, value, self.processing_modes.get(key).map(Vec::as_slice).unwrap_or(&[]))?; }
         if let Some(v) = &s.ois { mode("OIS", v, &self.ois_modes)?; } if let Some(v) = &s.eis { mode("EIS", v, &self.eis_modes)?; }
+        if let Some(jpeg) = &s.jpeg {
+            // JPEG controls are output encoding, not sensor state: on a non-JPEG
+            // stream they would be silently ignored by the HAL, so refuse them.
+            let active = jpeg.quality.is_some() || jpeg.orientation.is_some()
+                || jpeg.thumbnail_quality.is_some() || jpeg.thumbnail_size.is_some();
+            if active && !s.stream.as_ref().is_some_and(|st| st.format == PixelFormat::Jpeg) {
+                return Err(CameraError::new(ErrorCode::InvalidRequest, "JPEG controls require a JPEG stream"));
+            }
+            // JPEG_QUALITY / JPEG_THUMBNAIL_QUALITY are documented as 1..100.
+            if jpeg.quality.is_some_and(|q| q == 0 || q > 100) {
+                return Err(CameraError::new(ErrorCode::OutOfRange, "jpeg_quality"));
+            }
+            if jpeg.thumbnail_quality.is_some_and(|q| q == 0 || q > 100) {
+                return Err(CameraError::new(ErrorCode::OutOfRange, "jpeg_thumbnail_quality"));
+            }
+            // JPEG_ORIENTATION accepts exactly the four EXIF orientations.
+            if jpeg.orientation.is_some_and(|o| ![0, 90, 180, 270].contains(&o)) {
+                return Err(CameraError::new(ErrorCode::InvalidRequest, "jpeg_orientation"));
+            }
+            if let Some(size) = &jpeg.thumbnail_size {
+                if !self.jpeg_thumbnail_sizes.contains(size) {
+                    return Err(CameraError::new(ErrorCode::Unsupported, "jpeg thumbnail size not announced"));
+                }
+            }
+        }
         Ok(ConfigurationOutcome { requested: request.clone(), applied, adjustments })
     }
 }

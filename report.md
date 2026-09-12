@@ -242,3 +242,640 @@ un elenco di chiavi per prova di controllo. Il passo successivo è aggiungere co
 pubblici tipizzati con discovery/validazione/risultati; i limiti privati rimangono dichiarati.
 
 Guida operativa e mappa: `doc/cli-control-reference.md`.
+
+### Controprova strict su sequenza multipla
+
+`STRICT_SEQUENCE_2026-09-12T124048Z_960620900`: richiesti 3 frame, primo frame
+conservato, exit 1 per hot_pixel/shading forzati dall'HAL, 2 frame non avviati.
+`session-inspect`: integrità true, saved=1, remaining=2. Conferma hardware
+dell'interruzione, non soltanto del capture singolo.
+
+Durante il lavoro sono apparsi README riorganizzato, AGENTS.md e asset/icona
+Android/Rust da attività concorrente: preservati, non modificati da questa verifica.
+
+
+
+last agents run: Leggo prima report.md, test.md, README e lo stato attuale del codice. Poi completo la catena CLI → app Kotlin → camera, distinguendo i controlli realmente supportati dal telefono da quelli indisponibili. Lavoro da solo, esclusivamente via shell/ADB, preservando le modifiche dell’altro agente.
+
+
+
+
+  Ran commandsRan git status --short; rg --files -g '*report*' -g '*test.md' -g '*README*' -g 'AGENTS.md' -g 'Cargo.toml' -g '*cli*' -g '*Protocol*' -g '*Bridge*'
+
+
+
+
+Ran Get-Content README.md; Get-Content report.md; Get-Content test.md
+
+
+
+
+Ran Get-Content Rust_App/crates/deepsky-cli/src/main.rs; Get-Content Rust_App/crates/deepsky-cli/src/commands/acquire.rs; Get-Content Rust_App/crates/deepsky-cli/src/commands/preview.rs; rg --files Rust_App/crates/deepsky-camera/src Android_App/app/src/main/java/com/deepskyeyes/android; Get-Content report.md -Tail 100
+
+
+
+
+Ran Get-Content Rust_App/crates/deepsky-camera/src/backend.rs; Get-Content Rust_App/crates/deepsky-camera/src/model.rs; Get-Content Android_App/app/src/main/java/com/deepskyeyes/android/transport/BridgeServer.kt; Get-Content Rust_App/crates/deepsky-cli/src/commands/mod.rs; rg -n 'struct CaptureSpec|struct AcquisitionOptions|fn build_request|CaptureSpec \{' Rust_App/crates/deepsky-app/src/controller.rs
+
+
+
+
+Ran Get-Content Rust_App/crates/deepsky-app/src/controller.rs | Select-Object -Skip 270 -First 170; rg -n 'rpc|struct|fn ' Rust_App/crates/deepsky-app/src/remote.rs; Get-Content Android_App/app/src/main/java/com/deepskyeyes/android/camera/RequestValidator.kt; Get-Content Android_App/app/src/main/java/com/deepskyeyes/android/camera/CapabilityDiscovery.kt
+
+
+
+
+
+
+
+
+
+Ho trovato due problemi concreti oltre ai parametri mancanti: la CLI parte sul simulatore se non si specifica la sorgente, e alcuni flag sconosciuti o il Kelvin possono essere ignorati. Correggo questi comportamenti prima di ampliare i controlli: un comando deve applicarsi davvero oppure fallire chiaramente.
+
+
+
+
+Edited files, ran commandsRan Get-Content Rust_App/crates/deepsky-app/src/remote.rs -First 100; Get-Content Rust_App/crates/deepsky-app/src/controller.rs -First 110; rg -n 'CaptureSpec \{|AcquisitionOptions \{' Rust_App; Get-Content Rust_App/crates/deepsky-cli/Cargo.toml; Get-Content Android_App/app/src/main/AndroidManifest.xml; Get-Content Android_App/app/src/main/java/com/deepskyeyes/android/MainActivity.kt -First 90; rg -n 'white_balance_request|build_request\(' Rust_App/crates/deepsky-app/src/controller.rs
+
+
+
+
+Ran Get-Content Rust_App/crates/deepsky-app/src/source.rs; Get-Content Rust_App/crates/deepsky-app/src/controller.rs | Select-Object -Skip 460 -First 35; Get-Content Rust_App/crates/deepsky-app/src/worker.rs | Select-Object -Skip 560 -First 28; Get-Content Rust_App/crates/deepsky-app/src/main.rs | Select-Object -Skip 100 -First 34; Get-Content Rust_App/crates/deepsky-camera/Cargo.toml; Get-Content Rust_App/crates/deepsky-protocol/src/rpc.rs -First 80; C:\platform-tools\adb.exe devices
+
+
+
+
+Edited controller.rs+15-2
+
+
+
+
+Edited worker.rs+1-0
+
+
+
+
+Edited acquire.rs+2-1
+
+
+
+
+Created controls.rs+47-0
+
+
+
+
+Edited mod.rs+2-0
+
+
+
+
+Edited preview.rs+1-0
+
+
+
+
+
+
+Edited remote.rs+6-0
+
+
+
+
+Edited backend.rs+4-0
+
+
+
+
+Created diagnostics.rs+24-0
+
+
+
+
+Edited main.rs+54-1
+
+
+
+
+
+
+Ran cargo test -p deepsky-cli -p deepsky-app -p deepsky-camera -j 2
+
+
+
+
+Ran rg -n 'fun capture|DngCreator|reported|EIS|eis|crop|fun buildRequest|fun autofocus' Android_App/app/src/main/java/com/deepskyeyes/android/camera/CameraEngine.kt; Get-Content Android_App/app/src/main/java/com/deepskyeyes/android/camera/CameraEngine.kt | Select-Object -Skip 155 -First 80; Get-Content README.md | Select-Object -Last 160; Get-Content Rust_App/crates/deepsky-cli/src/commands/camera.rs; Get-Content Rust_App/crates/deepsky-cli/src/commands/capabilities.rs
+
+
+
+
+Edited MainActivity.kt+11-0
+
+
+
+
+Edited CapabilityDiscovery.kt+8-1
+
+
+
+
+Edited model.rs+1-0
+
+
+
+
+
+
+Ran cargo build -p deepsky-cli --release -j 2
+
+
+
+
+Ran & '.tools/gradle-9.6.0/bin/gradle.bat' :app:assembleRelease :app:testDebugUnitTest :app:lintRelease --no-daemon
+
+
+
+
+
+
+
+
+
+Sono ora esposti crop, durata del frame, OIS, EIS e modalità di elaborazione, oltre ai comandi JSON per stato, temperatura, ping, dump completo e autofocus. Sto compilando anche Kotlin: aggiungo l’avvio del servizio da ADB e tolgo dall’elenco DNG le risoluzioni che il writer Android non può salvare; restano disponibili come RAW16.
+
+
+
+
+Edited files, ran commandsRan Get-Content Rust_App/crates/deepsky-app/src/controller.rs | Select-Object -Skip 710 -First 175; Get-Content Android_App/app/src/main/java/com/deepskyeyes/android/camera/CameraEngine.kt | Select-Object -Skip 385 -First 52; Get-Content Android_App/app/src/test/java/com/deepskyeyes/android/RequestValidatorTest.kt -First 40; git diff --stat
+
+
+
+
+Edited remote.rs+14-3
+
+
+
+
+Edited diagnostics.rs+9-2
+
+
+
+
+
+
+Ran $env:PATH = 'C:\platform-tools;' + $env:PATH; & Rust_App/target/release/deepsky-eyes.exe status
+
+
+
+
+Ran Get-Content Rust_App/crates/deepsky-metadata/src/frame.rs -First 130; Get-Content Rust_App/crates/deepsky-app/src/controller.rs | Select-Object -Skip 875 -First 38; rg -n 'CameraCapabilities \{' Rust_App/crates --glob '*.rs'
+
+
+
+
+Edited controller.rs+3-0
+
+
+
+
+
+
+Ran C:\platform-tools\adb.exe -s 44101FDJG003S3 install -r -g Android_App/app/build/outputs/apk/release/app-release.apk; C:\platform-tools\adb.exe -s 44101FDJG003S3 shell am start -n com.deepskyeyes.android/.MainActivity -a com.deepskyeyes.android.START_BRIDGE
+
+
+
+
+Ran cargo test --workspace --features deepsky-ui/desktop -j 2; if ($LASTEXITCODE -eq 0) { cargo build -p deepsky-cli --release -j 2 }
+
+
+
+
+Ran $env:PATH = 'C:\platform-tools;' + $env:PATH; & Rust_App/target/release/deepsky-eyes.exe status; & Rust_App/target/release/deepsky-eyes.exe thermal; & Rust_App/target/release/deepsky-eyes.exe capabilities --camera 0
+
+
+
+
+Ran Get-Content Rust_App/crates/deepsky-app/src/controller.rs | Select-Object -Skip 500 -First 125; Get-Content Rust_App/crates/deepsky-sequencer/src/validation.rs; Get-Content Android_App/app/src/main/java/com/deepskyeyes/android/camera/CameraEngine.kt | Select-Object -Skip 252 -First 44
+
+
+
+
+Edited model.rs+2-0
+
+
+
+
+Created execute.rs+50-0
+
+
+
+
+Edited mod.rs+1-0
+
+
+
+
+Edited main.rs+6-0
+
+
+
+
+
+
+Ran cargo build -p deepsky-cli --release -j 2
+
+
+
+
+Created cli-regression.ps1+45-0
+
+
+
+
+
+
+
+
+
+
+
+L’APK aggiornato è installato e il servizio si avvia dal PC senza premere pulsanti nell’app. Ho aggiunto anche richieste JSON complete, per controlli avanzati e scatti JPEG separati dalle sequenze scientifiche RAW. Ora eseguo la matrice di prove reali, compresi gli errori intenzionali e la verifica che il servizio resti utilizzabile.
+
+
+
+
+Edited a file, ran commandsRan & ./doc/cli-regression.ps1
+
+
+
+
+Ran Get-Content Rust_App/crates/deepsky-protocol/src/codec.rs; $deepskyPid = (C:\platform-tools\adb.exe -s 44101FDJG003S3 shell pidof com.deepskyeyes.android).Trim(); C:\platform-tools\adb.exe -s 44101FDJG003S3 logcat -d --pid=$deepskyPid -s DSKY:D AndroidRuntime:E | Select-Object -Last 20; Get-Content Android_App/app/src/main/java/com/deepskyeyes/android/protocol/Json.kt
+
+
+
+
+Edited remote.rs+1-1
+
+
+
+
+
+
+Ran cargo build -p deepsky-cli --release -j 2; $env:PATH = 'C:\platform-tools;' + $env:PATH; & target/release/deepsky-eyes.exe capability_dump
+
+
+
+
+Edited remote.rs+1-1
+
+
+
+
+
+
+Ran cargo build -p deepsky-cli --release -j 2; $env:PATH = 'C:\platform-tools;' + $env:PATH; & target/release/deepsky-eyes.exe capability_dump
+
+
+
+
+
+
+
+
+
+Il dump completo ha fatto emergere un bug reale dell’adapter: i numeri razionali di Camera2 venivano serializzati come 1/6, producendo JSON invalido. Lo correggo conservando numeratore e denominatore esatti; le prove stanno quindi verificando il percorso completo, non soltanto la compilazione.
+
+
+
+
+Edited files, read files, ran commandsEdited CapabilityDiscovery.kt+4-1
+
+
+
+
+Edited remote.rs+1-1
+
+
+
+
+
+
+Ran & '.tools/gradle-9.6.0/bin/gradle.bat' :app:assembleRelease :app:testDebugUnitTest :app:lintRelease --no-daemon
+
+
+
+
+Ran $env:PATH = 'C:\platform-tools;' + $env:PATH; & Rust_App/target/release/deepsky-eyes.exe autofocus --camera 0
+
+
+
+
+Edited CapabilityDiscovery.kt+1-1
+
+
+
+
+Edited main.rs+5-1
+
+
+
+
+
+
+Ran Get-Content test.md -Tail 5; Get-Content report.md -Tail 5; rg --files doc | Select-Object -First 35; rg -n 'start_ns|thermal_events|record_thermal' Rust_App/crates/deepsky-session/src/store.rs
+
+
+
+
+Read store.rs
+
+
+
+Ran Get-Content Rust_App/crates/deepsky-session/src/recovery.rs -First 60; Get-Content Rust_App/crates/deepsky-app/src/controller.rs | Select-Object -Skip 625 -First 50
+
+
+
+
+Edited controller.rs+7-2
+
+
+
+
+Edited execute.rs+13-0
+
+
+
+
+Edited main.rs+3-0
+
+
+
+
+
+
+Ran cargo test -p deepsky-cli -p deepsky-app --lib --bins -j 2; if ($LASTEXITCODE -eq 0) { cargo build -p deepsky-cli --release -j 2 }
+
+
+
+
+Ran C:\platform-tools\adb.exe -s 44101FDJG003S3 install -r -g Android_App/app/build/outputs/apk/release/app-release.apk; C:\platform-tools\adb.exe -s 44101FDJG003S3 shell am start -n com.deepskyeyes.android/.MainActivity -a com.deepskyeyes.android.START_BRIDGE
+
+
+
+
+Ran & ./doc/cli-regression.ps1
+
+
+
+
+Ran $auditDir = Get-ChildItem Rust_App/target/release/captures -Directory -Filter 'CLI_AUDIT_*' | Sort-Object Name | Select-Object -Last 1; Get-ChildItem -LiteralPath $auditDir.FullName -Recurse -Filter '*.dng.json' | Where-Object { $_.FullName -match 'CONTROLS|CROP' } | ForEach-Object { Get-Content -LiteralPath $_.FullName }; Get-Content doc/06-white-balance-color-processing.md -First 100
+
+
+
+
+
+
+
+
+
+Le prove confermano OIS/EIS, durata del frame e diversi controlli di elaborazione. Hanno anche mostrato un limite dell’HAL: per questi RAW il Pixel riporta hot-pixel e shading su high_quality anche quando chiedo altro; il crop viene arrotondato di un pixel. Aggiungo avvisi espliciti e una modalità rigorosa che interrompe la sequenza quando i risultati non rispettano i controlli richiesti.
+
+
+
+
+Edited files, ran commandsEdited controller.rs+35-1
+
+
+
+
+Edited worker.rs+1-0
+
+
+
+
+Edited acquire.rs+1-0
+
+
+
+
+Edited main.rs+4-3
+
+
+
+
+
+
+Ran cargo test -p deepsky-app -p deepsky-cli -j 2
+
+
+
+
+Edited report.md+69-0
+
+
+
+
+Edited test.md+27-0
+
+
+
+
+
+
+Edited cli-regression.ps1+11-1
+
+
+
+
+
+
+Ran cargo build -p deepsky-cli --release -j 2; if ($LASTEXITCODE -eq 0) { & ../doc/cli-regression.ps1 -Long }
+
+
+
+
+Ran & '.tools/gradle-9.6.0/bin/gradle.bat' :app:assembleRelease :app:testDebugUnitTest :app:lintRelease --no-daemon
+
+
+
+
+Ran Get-Content Rust_App/crates/deepsky-app/src/controller.rs | Select-Object -Last 70; Get-Content Rust_App/crates/deepsky-cli/src/main.rs | Select-Object -Skip 35 -First 45
+
+
+
+
+Edited controller.rs+15-0
+
+
+
+
+Edited main.rs+7-0
+
+
+
+
+
+
+Ran Get-Content Android_App/app/src/main/java/com/deepskyeyes/android/camera/CapabilityDiscovery.kt | Select-Object -Skip 94 -First 25; Get-Content doc/cli-regression.ps1 -Tail 15
+
+
+
+
+Edited CapabilityDiscovery.kt+37-1
+
+
+
+
+
+
+
+
+
+
+
+La modalità rigorosa è stata verificata: conserva lo scatto e restituisce errore quando l’HAL forza parametri diversi. Anche lo scatto alla massima esposizione è passato; il comando completo, inclusa l’anteprima finale, ha richiesto 50,4 s. È in corso la sequenza di 30 scatti da 1 s, poi verifico tutti i file e i campioni termici.
+
+
+
+
+Edited a file, ran commandsRan cargo test --workspace --features deepsky-ui/desktop -j 2
+
+
+
+
+Ran & '.tools/gradle-9.6.0/bin/gradle.bat' :app:assembleRelease :app:testDebugUnitTest :app:lintRelease --no-daemon
+
+
+
+
+Ran git diff --check; $auditDir = Get-ChildItem Rust_App/target/release/captures -Directory -Filter 'CLI_AUDIT_*' | Sort-Object Name | Select-Object -Last 1; $results = Get-Content -LiteralPath (Join-Path $auditDir.FullName 'results.json') -Raw | ConvertFrom-Json; $results | Where-Object { $_.name -eq 'strict-results-preserve-and-stop' -or $_.name -eq 'maximum-exposure' } | Select-Object name,output | Format-List; Get-ChildItem -LiteralPath $auditDir.FullName -Directory -Filter 'STABILITY*' | ForEach-Object { (Get-ChildItem -LiteralPath (Join-Path $_.FullName 'lights') -Filter '*.dng').Count }
+
+
+
+
+Ran $auditDir = Get-ChildItem Rust_App/target/release/captures -Directory -Filter 'CLI_AUDIT_*' | Sort-Object Name | Select-Object -Last 1; $seqDir = Get-ChildItem -LiteralPath $auditDir.FullName -Directory -Filter 'STABILITY*' | Select-Object -First 1; $revision = Get-ChildItem -LiteralPath (Join-Path $seqDir.FullName 'metadata') -Filter 'session-*.json' | Sort-Object Name | Select-Object -Last 1; $manifest = Get-Content -LiteralPath $revision.FullName -Raw | ConvertFrom-Json; [pscustomobject]@{Audit=$auditDir.Name;Completed=$manifest.frames_completed;ThermalSamples=$manifest.thermal_events.Count;FirstExposure=$manifest.frames[0].metadata.exposure_reported_ns;LastExposure=$manifest.frames[-1].metadata.exposure_reported_ns;SensorSpanSeconds=($manifest.frames[-1].timestamp_ns-$manifest.frames[0].timestamp_ns)/1e9}; $manifest.thermal_events | ConvertTo-Json
+
+
+
+
+Created cli-control-reference.md+102-0
+
+
+
+
+
+
+
+
+
+
+
+La sequenza ha completato 30/30 RAW, tutti verificati tramite checksum, con tre campioni termici nominali salvati. Ogni esposizione riporta 0,999971 s; il tempo complessivo è stato 59,85 s. Sto completando la documentazione della CLI e l’inventario dei controlli, indicando anche quelli nativi che l’adapter non espone.
+
+
+
+
+Edited files, ran commandsRan cargo build -p deepsky-cli --release -j 2
+
+
+
+
+Ran C:\platform-tools\adb.exe -s 44101FDJG003S3 install -r -g Android_App/app/build/outputs/apk/release/app-release.apk; C:\platform-tools\adb.exe -s 44101FDJG003S3 shell am start -n com.deepskyeyes.android/.MainActivity -a com.deepskyeyes.android.START_BRIDGE
+
+
+
+
+Ran $auditDir = Get-ChildItem Rust_App/target/release/captures -Directory -Filter 'CLI_AUDIT_*' | Sort-Object Name | Select-Object -Last 1; $results = Get-Content -LiteralPath (Join-Path $auditDir.FullName 'results.json') -Raw | ConvertFrom-Json; [pscustomobject]@{Tests=$results.Count;Failures=@($results | Where-Object {$_.actual -ne $_.expected}).Count}; Get-ChildItem Android_App/app/build/test-results/testDebugUnitTest -Filter 'TEST-*.xml' | ForEach-Object { [xml]$r = Get-Content -LiteralPath $_.FullName; [pscustomobject]@{Suite=$r.testsuite.name;Tests=$r.testsuite.tests;Failures=$r.testsuite.failures;Errors=$r.testsuite.errors} } | Format-Table
+
+
+
+
+Ran $env:PATH = 'C:\platform-tools;' + $env:PATH; $dumpText = & Rust_App/target/release/deepsky-eyes.exe capability_dump --out doc/camera-inventory-20260912.json; if ($LASTEXITCODE -ne 0) { throw 'dump failed' }; $dump = $dumpText -join "`n" | ConvertFrom-Json; $dump.cameras | ForEach-Object { [pscustomobject]@{Camera=$_.camera_id;Characteristics=$_.characteristics.PSObject.Properties.Count;RequestKeys=$_.request_controls.Count;Mapped=@($_.request_controls | Where-Object exposed).Count;Unmapped=@($_.request_controls | Where-Object {-not $_.exposed}).Count} } | Format-List; & Rust_App/target/release/deepsky-eyes.exe status; & Rust_App/target/release/deepsky-eyes.exe --source adb --realtime discover
+
+
+
+
+Ran $inventory = Get-Content doc/camera-inventory-20260912.json -Raw | ConvertFrom-Json; $inventory.cameras[0].request_controls | Where-Object {-not $_.exposed} | Select-Object -ExpandProperty key; rg -n 'requestMetadata|captureRequest|whiteBalance|native|temperature|colorTemperature|colorTint' doc/camera-inventory-20260912.json | Select-Object -First 30
+
+
+
+
+Ran rg -n 'CaptureSettings \{' Rust_App --glob '*.rs'; Get-Content Android_App/app/src/main/java/com/deepskyeyes/android/camera/CameraEngine.kt -First 70; Get-Content Android_App/app/src/test/java/com/deepskyeyes/android/ValidatorTest.kt -First 30
+
+
+
+
+Edited report.md+36-3
+
+
+
+
+Edited test.md+7-3
+
+
+
+
+
+
+Ran git diff --check; git status --short; Get-Item Rust_App/target/release/deepsky-eyes.exe, Android_App/app/build/outputs/apk/release/app-release.apk | Select-Object FullName,Length,LastWriteTime
+
+
+
+
+Ran Get-Content AGENTS.md; git diff -- README.md
+
+
+
+
+Ran Get-Content AGENTS.md | Select-Object -Skip 600 -First 1000
+
+
+
+
+Ran Get-Content AGENTS.md | Select-Object -Skip 1600 -First 1200
+
+
+
+
+Ran Get-Content AGENTS.md | Select-Object -Skip 2800
+
+
+
+
+Ran $env:PATH = 'C:\platform-tools;' + $env:PATH; & Rust_App/target/release/deepsky-eyes.exe sequence --camera 0 --project STRICT_SEQUENCE --frames 3 --exposure-ns 100000000 --sensitivity 100 --wb-preset daylight --processing hot_pixel=off,shading=off --strict-results; $strictExit = $LASTEXITCODE; $strictDir = Get-ChildItem Rust_App/target/release/captures -Directory -Filter 'STRICT_SEQUENCE_*' | Sort-Object Name | Select-Object -Last 1; $scanText = & Rust_App/target/release/deepsky-eyes.exe session-inspect --path $strictDir.FullName; $scanResult = $scanText -join "`n" | ConvertFrom-Json; [pscustomobject]@{Exit=$strictExit;Requested=$scanResult.manifest.frames_requested;Saved=$scanResult.manifest.frames_completed;Integrity=$scanResult.integrity_ok;Remaining=$scanResult.frames_remaining;Session=$strictDir.FullName}; if ($strictExit -ne 1 -or $scanResult.manifest.frames_completed -ne 1 -or -not $scanResult.integrity_ok) { throw 'strict sequence regression failed' }
+
+
+
+
+Edited report.md+10-0
+
+
+
+
+Edited test.md+1-1
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+CLI e Kotlin aggiornati, release compilate e APK installato.
+Verificati via ADB: 37 prove, 30/30 RAW con checksum, autofocus, controlli avanzati e arresto rigoroso sulle discrepanze dell’HAL.
+Il controllo totale non è ancora raggiunto: l’inventario distingue tutti i parametri, ma restano controlli pubblici da implementare e chiavi private Google non utilizzabili alla cieca.
+Risultati e lavoro restante in [report.md](E:/project-seri/DeepskyEyes/report.md), [test.md](E:/project-seri/DeepskyEyes/test.md) e [guida CLI](E:/project-seri/DeepskyEyes/doc/cli-control-reference.md).
+
+## Appendice di fermo — 2026-09-12
+
+- Su richiesta dell'utente, lavoro fermato. In questa continuazione ho solo verificato worktree/ADB e letto modello Rust e parti Kotlin: **nessuna nuova implementazione, build o acquisizione**.
+- Stavo preparando i controlli JPEG tipizzati (qualità, orientamento, qualità/dimensioni thumbnail), da esporre via CLI JSON con discovery, validazione e risultati reali. Non ancora implementati.
+- Rimane valido il lavoro precedente: CLI ampliata, APK release installato, 37 prove con esito atteso, 30/30 RAW verificati, autofocus e strict-results testati. Non significa controllo universale: camera 0 ha 94 chiavi, 27 mappate e 67 non esposte nell'inventario attuale.
+- Aggiunto in fondo a test.md il piano completo di ripresa: JPEG, altri controlli pubblici, regressioni, qualità RAW, guasti/recovery e prove lunghe. Le attività non eseguite restano esplicitamente da fare.
+- Preservati lavoro concorrente e file esistenti. Nessuna attività nuova lasciata in esecuzione da questa continuazione. Attendere indicazione dell'utente prima di riprendere.
