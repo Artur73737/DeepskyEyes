@@ -322,6 +322,7 @@ pub fn build_request(caps: &CameraCapabilities, spec: &CaptureSpec) -> Result<Ca
             processing: processing_minimal(caps),
             ois: caps.ois_modes.iter().find(|m| *m == "off").cloned(),
             eis: caps.eis_modes.iter().find(|m| *m == "off").cloned(),
+            jpeg: None,
         },
     };
     let extra = &spec.controls;
@@ -330,6 +331,7 @@ pub fn build_request(caps: &CameraCapabilities, spec: &CaptureSpec) -> Result<Ca
     request.settings.processing.extend(extra.processing.clone());
     if extra.ois.is_some() { request.settings.ois = extra.ois.clone(); }
     if extra.eis.is_some() { request.settings.eis = extra.eis.clone(); }
+    if extra.jpeg.is_some() { request.settings.jpeg = extra.jpeg; }
     if extra.white_balance.is_some() { request.settings.white_balance = extra.white_balance.clone(); }
     caps.validate_request(&request, ValidationPolicy::Reject)?;
     Ok(request)
@@ -943,6 +945,21 @@ pub fn control_observations(requested: &CaptureSettings, reported: &CaptureSetti
         let got = match reported.focus {Some(FocusRequest::Manual {millidiopters,..})=>Some(millidiopters),_=>None};
         if got.is_none_or(|got|got.abs_diff(want)>50) { warnings.push(format!("focus_millidiopters: requested {want}, reported {got:?} (tolerance 50)")); }
     }
+    // JPEG encoding is echoed verbatim by the HAL: any deviation or missing
+    // evidence is reported exactly, with no tolerance.
+    if let Some(want) = &requested.jpeg {
+        let got = reported.jpeg.unwrap_or_default();
+        for (name, w, g) in [
+            ("jpeg.quality", want.quality.map(u64::from), got.quality.map(u64::from)),
+            ("jpeg.orientation", want.orientation.map(u64::from), got.orientation.map(u64::from)),
+            ("jpeg.thumbnail_quality", want.thumbnail_quality.map(u64::from), got.thumbnail_quality.map(u64::from)),
+        ] {
+            if w.is_some() && w != g { warnings.push(format!("{name}: requested {w:?}, reported {g:?}")); }
+        }
+        if want.thumbnail_size.is_some() && want.thumbnail_size != got.thumbnail_size {
+            warnings.push(format!("jpeg.thumbnail_size: requested {:?}, reported {:?}", want.thumbnail_size, got.thumbnail_size));
+        }
+    }
     warnings
 }
 
@@ -981,6 +998,25 @@ mod tests {
         got.exposure_ns = None;
         assert_eq!(control_observations(&want,&got).len(),2);
     }
+
+    #[test]
+    fn observations_cover_jpeg_exactly() {
+        use deepsky_camera::model::{JpegSettings, JpegSize};
+        let mut want = CaptureSettings::default();
+        want.jpeg = Some(JpegSettings { quality: Some(90), orientation: Some(90), thumbnail_quality: None, thumbnail_size: Some(JpegSize { width: 320, height: 240 }) });
+        let got = want.clone();
+        assert!(control_observations(&want, &reported_of(&got)).is_empty());
+        let mut drifted = reported_of(&got);
+        drifted.jpeg = Some(JpegSettings { quality: Some(95), orientation: Some(90), thumbnail_quality: None, thumbnail_size: Some(JpegSize { width: 320, height: 240 }) });
+        assert_eq!(control_observations(&want, &drifted).len(), 1);
+        let mut missing = reported_of(&got);
+        missing.jpeg = None;
+        assert_eq!(control_observations(&want, &missing).len(), 3);
+        // Unset JPEG block never warns, even with no evidence.
+        assert!(control_observations(&CaptureSettings::default(), &CaptureSettings::default()).is_empty());
+    }
+
+    fn reported_of(s: &CaptureSettings) -> CaptureSettings { s.clone() }
 
     #[test]
     fn utc_stamp_known_value() {

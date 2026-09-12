@@ -879,3 +879,33 @@ Risultati e lavoro restante in [report.md](E:/project-seri/DeepskyEyes/report.md
 - Rimane valido il lavoro precedente: CLI ampliata, APK release installato, 37 prove con esito atteso, 30/30 RAW verificati, autofocus e strict-results testati. Non significa controllo universale: camera 0 ha 94 chiavi, 27 mappate e 67 non esposte nell'inventario attuale.
 - Aggiunto in fondo a test.md il piano completo di ripresa: JPEG, altri controlli pubblici, regressioni, qualità RAW, guasti/recovery e prove lunghe. Le attività non eseguite restano esplicitamente da fare.
 - Preservati lavoro concorrente e file esistenti. Nessuna attività nuova lasciata in esecuzione da questa continuazione. Attendere indicazione dell'utente prima di riprendere.
+
+## Chiusura JPEG + prodotto finale — 2026-09-12 ~15:00–15:25
+
+### Controlli JPEG tipizzati: implementato e validato
+Rust (`model.rs`: `JpegSettings`/`JpegSize`, validazione Reject, observations strict esatte;
+`controls.rs`: flag `--jpeg-quality/--jpeg-orientation/--jpeg-thumbnail-quality/--jpeg-thumbnail-size`;
+`build_request`: merge da `spec.controls`) + Kotlin (discovery `jpeg_thumbnail_sizes` reali +
+`jpeg_quality` 1..100, `RequestValidator`, apply in `buildRequest` con log DSKY, reported dal
+`CaptureResult`, verifica dimensioni via `BitmapFactory` bounds). Test nuovi: 9 Rust + 5 Kotlin,
+tutti verdi (Rust 16+9+6+…, Kotlin 6+3+11). Qualità validata contro range annunciato (non hard-coded).
+
+Matrice HW (cam 0 + 1): q95=2.2MB / q85+tq50 / q60=417KB (scaling reale), ori 90→EXIF 6,
+thumb 320x240, frontale 3264x2448, reported echo completo. Rifiuti: quality 0/101→`OutOfRange`,
+ori 45→`InvalidRequest`, thumb 640x480→`Unsupported`, JPEG-su-RAW→`InvalidRequest`,
+JPEG-su-capture-path→`not a RAW format`. Exit code 1 verificati.
+
+### Regressione -Long verde (pwsh 7)
+`CLI_AUDIT_20260912_151709_522/results.json`: **37 invocazioni, 0 mismatch** (status/ping/thermal/
+dump/AF, 8 rifiuti intenzionali, RAW16 binnato, controlli, crop, 4 WB, 5 preview, template+execute
+JPEG, overwrite refusal, strict stop, max-exposure 50s, 30x1s 59.5s, 10 integrity scan).
+Nota: sotto PowerShell 5.1 lo script muore su stderr+harness (`NativeCommandError`) — usare pwsh 7.
+
+### Prodotto finale in `bin/`
+`deepsky-eyes.exe` (2.4MB), `deepsky-app.exe` (1.6MB, headless di default),
+`DeepskyEyes.apk` (release, 2.0MB) + `SHA256SUMS.txt`. Exe di `bin/` validato via ADB
+(status + capabilities con 13 thumbnail). APK release installata, bridge via START_BRIDGE.
+
+### Resta fuori (dichiarato, non rimandato)
+Chiavi private Google (mai toccate), AE/flash/aperture (design/HW fisso), prove lunghe
+1/2/4h e 300x15s (ore di esecuzione; comandi pronti), WB restanti già coperti in regressione.

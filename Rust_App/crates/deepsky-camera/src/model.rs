@@ -52,6 +52,9 @@ pub struct CameraCapabilities {
     /// Thumbnail sizes from `JPEG_AVAILABLE_THUMBNAIL_SIZES`, in device order.
     /// Empty means unknown (old dumps), not "no thumbnails".
     #[serde(default)] pub jpeg_thumbnail_sizes: Vec<JpegSize>,
+    /// JPEG quality range (API contract 1..100, announced per device).
+    /// None means unknown (old dumps): JPEG quality is then unsupported, not assumed.
+    #[serde(default)] pub jpeg_quality: Option<ValueRange>,
 }
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct JpegSize { pub width: u32, pub height: u32 }
@@ -177,12 +180,20 @@ impl CameraCapabilities {
             if active && !s.stream.as_ref().is_some_and(|st| st.format == PixelFormat::Jpeg) {
                 return Err(CameraError::new(ErrorCode::InvalidRequest, "JPEG controls require a JPEG stream"));
             }
-            // JPEG_QUALITY / JPEG_THUMBNAIL_QUALITY are documented as 1..100.
-            if jpeg.quality.is_some_and(|q| q == 0 || q > 100) {
-                return Err(CameraError::new(ErrorCode::OutOfRange, "jpeg_quality"));
+            // JPEG_QUALITY / JPEG_THUMBNAIL_QUALITY are 1..100 per the announced range.
+            if let Some(q) = jpeg.quality {
+                let range = self.jpeg_quality.ok_or_else(|| CameraError::new(ErrorCode::Unsupported, "jpeg quality not announced"))?;
+                range.validate()?;
+                if u64::from(q) < range.min || u64::from(q) > range.max {
+                    return Err(CameraError::new(ErrorCode::OutOfRange, "jpeg_quality"));
+                }
             }
-            if jpeg.thumbnail_quality.is_some_and(|q| q == 0 || q > 100) {
-                return Err(CameraError::new(ErrorCode::OutOfRange, "jpeg_thumbnail_quality"));
+            if let Some(q) = jpeg.thumbnail_quality {
+                let range = self.jpeg_quality.ok_or_else(|| CameraError::new(ErrorCode::Unsupported, "jpeg quality not announced"))?;
+                range.validate()?;
+                if u64::from(q) < range.min || u64::from(q) > range.max {
+                    return Err(CameraError::new(ErrorCode::OutOfRange, "jpeg_thumbnail_quality"));
+                }
             }
             // JPEG_ORIENTATION accepts exactly the four EXIF orientations.
             if jpeg.orientation.is_some_and(|o| ![0, 90, 180, 270].contains(&o)) {

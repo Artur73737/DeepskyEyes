@@ -2,6 +2,7 @@ package com.deepskyeyes.android.camera
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.graphics.BitmapFactory
 import android.graphics.ImageFormat
 import android.graphics.Rect
 import android.hardware.camera2.*
@@ -14,6 +15,7 @@ import android.os.HandlerThread
 import android.os.PowerManager
 import android.os.SystemClock
 import android.util.Rational
+import android.util.Size
 import com.deepskyeyes.android.protocol.*
 import org.json.JSONObject
 import java.io.ByteArrayOutputStream
@@ -197,6 +199,13 @@ class CameraEngine(context: Context, private val status: (String) -> Unit) : Aut
         }
         settings.stringOrNull("ois")?.let { b.set(CaptureRequest.LENS_OPTICAL_STABILIZATION_MODE,if(it == "off") 0 else 1) }
         settings.stringOrNull("eis")?.let { b.set(CaptureRequest.CONTROL_VIDEO_STABILIZATION_MODE,if(it == "off") 0 else 1) }
+        settings.optJSONObject("jpeg")?.let { jpeg ->
+            if (!jpeg.isNull("quality")) b.set(CaptureRequest.JPEG_QUALITY, jpeg.getLong("quality").toByte())
+            if (!jpeg.isNull("orientation")) b.set(CaptureRequest.JPEG_ORIENTATION, jpeg.getInt("orientation"))
+            if (!jpeg.isNull("thumbnail_quality")) b.set(CaptureRequest.JPEG_THUMBNAIL_QUALITY, jpeg.getLong("thumbnail_quality").toByte())
+            jpeg.optJSONObject("thumbnail_size")?.let { b.set(CaptureRequest.JPEG_THUMBNAIL_SIZE, Size(it.getInt("width"), it.getInt("height"))) }
+            Log.d("DSKY", "jpeg quality=${jpeg.opt("quality")} orientation=${jpeg.opt("orientation")} thumb=${jpeg.opt("thumbnail_size")}")
+        }
         val c = discovery.characteristics(camera.id)
         if(c[CameraCharacteristics.STATISTICS_INFO_AVAILABLE_LENS_SHADING_MAP_MODES]?.contains(CameraMetadata.STATISTICS_LENS_SHADING_MAP_MODE_ON) == true) {
             b.set(CaptureRequest.STATISTICS_LENS_SHADING_MAP_MODE,CameraMetadata.STATISTICS_LENS_SHADING_MAP_MODE_ON)
@@ -274,7 +283,14 @@ class CameraEngine(context: Context, private val status: (String) -> Unit) : Aut
                     fault("Unsupported","DNG writer rejected ${image.width}x${image.height} (${e.message}); use Raw16Le for this size")
                 }
                 "Raw16Le" -> packedRaw(image)
-                "Jpeg" -> ByteArray(image.planes[0].buffer.remaining()).also { image.planes[0].buffer.get(it) }
+                "Jpeg" -> ByteArray(image.planes[0].buffer.remaining()).also { image.planes[0].buffer.get(it) }.also { bytes ->
+                    // Verify the encoded payload really is this stream: decode bounds
+                    // only (no pixel alloc) and refuse resized/corrupt data explicitly.
+                    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                    BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
+                    requireCamera(bounds.outWidth == stream.getInt("width") && bounds.outHeight == stream.getInt("height"),
+                        "Io","JPEG payload ${bounds.outWidth}x${bounds.outHeight} differs from stream ${stream.getInt("width")}x${stream.getInt("height")}")
+                }
                 else -> fault("Unsupported","Capture output")
             }
             val reported = reported(result,stream)
@@ -445,12 +461,22 @@ class CameraEngine(context: Context, private val status: (String) -> Unit) : Aut
         }
         return obj("exposure_ns" to r[CaptureResult.SENSOR_EXPOSURE_TIME],"sensitivity" to r[CaptureResult.SENSOR_SENSITIVITY],
             "frame_duration_ns" to r[CaptureResult.SENSOR_FRAME_DURATION],
+            "jpeg" to jpegResult(r),
             "focus" to if(focus != null && af == CameraMetadata.CONTROL_AF_MODE_OFF) obj("Manual" to obj("millidiopters" to (focus*1000).toLong(),"locked" to (lensState == CameraMetadata.LENS_STATE_STATIONARY))) else null,
             "zoom_x1000" to r[CaptureResult.CONTROL_ZOOM_RATIO]?.let { (it*1000).toLong() },
             "crop" to crop?.let { obj("x" to it.left,"y" to it.top,"width" to it.width(),"height" to it.height()) },
             "stream" to stream.copyJson(),"white_balance" to wb,"processing" to processing,
             "ois" to r[CaptureResult.LENS_OPTICAL_STABILIZATION_MODE]?.let { if(it == 0) "off" else "on" },
             "eis" to r[CaptureResult.CONTROL_VIDEO_STABILIZATION_MODE]?.let { if(it == 0) "off" else "on" })
+    }
+    /** JPEG encoder observations: result keys when the HAL echoes them, else absent. Never invented. */
+    private fun jpegResult(r: TotalCaptureResult): JSONObject? {
+        val out = JSONObject()
+        r[CaptureResult.JPEG_QUALITY]?.let { out.put("quality", it.toLong()) }
+        r[CaptureResult.JPEG_ORIENTATION]?.let { out.put("orientation", it) }
+        r[CaptureResult.JPEG_THUMBNAIL_QUALITY]?.let { out.put("thumbnail_quality", it.toLong()) }
+        r[CaptureResult.JPEG_THUMBNAIL_SIZE]?.let { out.put("thumbnail_size", obj("width" to it.width, "height" to it.height)) }
+        return if (out.length() > 0) out else null
     }
     private fun packedRaw(image: Image): ByteArray {
         val p = image.planes[0]

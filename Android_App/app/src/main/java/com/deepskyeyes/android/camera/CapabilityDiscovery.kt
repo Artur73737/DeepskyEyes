@@ -84,6 +84,10 @@ class CapabilityDiscovery(private val manager: CameraManager) {
             "active_array" to active?.let { obj("x" to it.left,"y" to it.top,"width" to it.width(),"height" to it.height()) },
             "crop_supported" to (active != null), "streams" to arr(streams), "preview_streams" to arr(previews),
             "wb_modes" to arr(wbModes), "wb_kelvin" to null, "wb_tint" to null, "wb_gain_x1000" to null,
+            // JPEG output encoding: quality range is an API contract (1..100);
+            // thumbnail sizes are real discovery from the HAL.
+            "jpeg_quality" to range(1, 100),
+            "jpeg_thumbnail_sizes" to arr(c[C.JPEG_AVAILABLE_THUMBNAIL_SIZES].orEmpty().map { obj("width" to it.width, "height" to it.height) }),
             "processing_modes" to processing,
             "ois_modes" to arr(c[C.LENS_INFO_AVAILABLE_OPTICAL_STABILIZATION].orEmpty().map { if(it == 0) "off" else "on" }),
             "eis_modes" to arr(c[C.CONTROL_AVAILABLE_VIDEO_STABILIZATION_MODES].orEmpty().filter { it in 0..1 }.map { if(it == 0) "off" else "on" })

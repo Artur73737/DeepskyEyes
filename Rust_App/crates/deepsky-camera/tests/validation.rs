@@ -3,6 +3,8 @@ use deepsky_camera::*;
 fn jpeg_caps() -> CameraCapabilities {
     CameraCapabilities {
         manual_sensor: Some(true),
+        raw: Some(true),
+        jpeg_quality: Some(ValueRange { min: 1, max: 100 }),
         jpeg_thumbnail_sizes: vec![JpegSize { width: 0, height: 0 }, JpegSize { width: 320, height: 240 }],
         streams: vec![
             StreamConfiguration { width: 4032, height: 3024, format: PixelFormat::Jpeg, pixel_mode: SensorPixelMode::Default, binned: None, min_frame_duration_ns: None, stall_duration_ns: None },
@@ -44,6 +46,13 @@ fn jpeg_orientation_set_rejects() {
         let err = caps.validate_request(&req, ValidationPolicy::Reject).unwrap_err();
         assert_eq!(err.code, ErrorCode::InvalidRequest, "orientation {o}");
     }
+}
+#[test]
+fn jpeg_quality_needs_announcement() {
+    let mut caps = jpeg_caps();
+    caps.jpeg_quality = None;
+    let req = jpeg_request(&caps, 0, JpegSettings { quality: Some(90), ..Default::default() });
+    assert_eq!(caps.validate_request(&req, ValidationPolicy::Reject).unwrap_err().code, ErrorCode::Unsupported);
 }
 #[test]
 fn jpeg_thumbnail_size_must_be_announced() {

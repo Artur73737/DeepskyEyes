@@ -79,14 +79,14 @@ export DNGs; the **Diagnostics** tab shows state, RX/TX bytes and bridge logs.
 
 ## 2. Rust CLI — `deepsky-eyes.exe`
 
-The exe lives in `Rust_App/target/release/deepsky-eyes.exe`.
+The exe lives in `bin/exe/deepsky-eyes.exe` (release package, see below).
 Use `--source adb` (default) with `--serial ID` when several phones are attached;
 `--source sim` opts into the synthetic simulator for phone-less testing.
 
 ### Inspect: discover what your Pixel can actually do
 
 ```powershell
-$cli = 'E:\project-seri\DeepskyEyes\Rust_App\target\release\deepsky-eyes.exe'
+$cli = 'E:\project-seri\DeepskyEyes\bin\exe\deepsky-eyes.exe'
 & $cli discover                        # announced cameras (0 back, 1 front)
 & $cli capabilities --camera 0         # rear camera capabilities (JSON)
 & $cli capability_dump --out camera-inventory.json  # extended characteristics dump
@@ -135,6 +135,9 @@ $cli = 'E:\project-seri\DeepskyEyes\Rust_App\target\release\deepsky-eyes.exe'
 | `--crop x,y,w,h` | `SCALER_CROP_REGION` | requested/reported rectangle |
 | `--ois on\|off`, `--eis on\|off` | stabilization | requested/reported value |
 | `--processing k=v,…` | edge, NR, hot-pixel, shading, … | each requested/reported mode |
+| `--jpeg-quality N` (1..100) | `JPEG_QUALITY` | JPEG output only (see below) |
+| `--jpeg-orientation N` (0/90/180/270) | `JPEG_ORIENTATION` | EXIF orientation flag |
+| `--jpeg-thumbnail-quality N`, `--jpeg-thumbnail-size WxH` | thumbnail keys | sizes must be announced |
 | `--frames N`, `--delay-ns N` | PC-side sequence | frame count and inter-frame delay |
 | `--project NAME`, `--kind light\|dark\|flat\|bias\|test`, `--out DIR` | session storage | manifests, filenames, checksums |
 | `--strict-results` | observation gate | stops sequence on first non-conforming frame |
@@ -151,6 +154,28 @@ $cli = 'E:\project-seri\DeepskyEyes\Rust_App\target\release\deepsky-eyes.exe'
 & $cli session-inspect --path 'SESSION_PATH'
 ```
 
+### JPEG output (typed controls)
+
+JPEG encoding is controlled, never guessed: quality/orientation/thumbnail
+settings are validated against the announcement (`jpeg_quality` 1..100,
+`jpeg_thumbnail_sizes` list) and echoed back in `reported`. On a non-JPEG
+stream they are refused (`JPEG controls require a JPEG stream`); the
+scientific `capture`/`sequence` path stays RAW-only by design. Example:
+
+```powershell
+& $cli execute --request req.json --out photo.jpg   # req.json holds "jpeg": {"quality": 90, ...}
+```
+
+### Release package (`bin/`)
+
+`bin/` holds the final builds plus checksums (`SHA256SUMS.txt`):
+
+| File | What |
+|---|---|
+| `bin/exe/deepsky-eyes.exe` | full CLI (all commands above) |
+| `bin/exe/deepsky-app.exe` | desktop/headless app (headless build; GUI needs `--features desktop`) |
+| `bin/apk/DeepskyEyes.apk` | release camera station (install with `adb install -r`) |
+
 Default output: a `captures` folder next to the exe. Each session holds
 `lights/`, `darks/`, `flats/`, `bias/`, `test/`, `metadata/` and `session.json`
 (capability snapshot, thermal events, warnings, errors, per-frame SHA-256).
@@ -163,7 +188,7 @@ GUI with live preview, camera/sequence/diagnostics panels and the same controls
 as the CLI (shared `controller`). Headless mode for automation:
 
 ```powershell
-& 'E:\project-seri\DeepskyEyes\Rust_App\target\release\deepsky-app.exe' --headless --out ./captures --project M42 --frames 10
+& 'E:\project-seri\DeepskyEyes\bin\exe\deepsky-app.exe' --headless --out ./captures --project M42 --frames 10
 ```
 
 ---
@@ -183,10 +208,12 @@ DeepskyEyes/
 └── Rust_App/                  # Rust mission control
     ├── assets/logo.png, logo-rounded.png
     ├── resources/deepsky-eyes.ico, icon-256.png
-    ├── target/release/deepsky-eyes.exe   # CLI
-    ├── target/release/deepsky-app.exe    # desktop / headless
+    ├── target/release/deepsky-eyes.exe   # CLI (build tree; release copy in bin/)
+    ├── target/release/deepsky-app.exe    # desktop / headless (build tree)
     └── crates/…               # protocol, transport, camera, acquisition, sequencer, …
 ```
+
+Final release package (binaries + APK + checksums): `bin/` — see above.
 
 ---
 

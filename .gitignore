@@ -2,6 +2,9 @@
 target/
 Rust_App/target/
 **/target/
+# Rilasci binari — mai committare exe/apk (stanno in bin/, vedi SHA256SUMS.txt)
+*.exe
+*.apk
 # File temporanei editor/OS
 .vscode/
 .idea/

@@ -102,4 +102,40 @@ class RequestValidatorTest {
         val unknown=request(); unknown.getJSONObject("settings").put("magic_denoise",true)
         assertThrows(CameraFault::class.java) { RequestValidator.validate(caps(),unknown,"Reject") }
     }
+    private fun jpegCaps() = caps().apply {
+        put("jpeg_quality", obj("min" to 1, "max" to 100))
+        put("jpeg_thumbnail_sizes", JSONArray().put(obj("width" to 0, "height" to 0)).put(obj("width" to 320, "height" to 240)))
+        getJSONArray("streams").put(obj("width" to 8, "height" to 6, "format" to "Jpeg", "pixel_mode" to "Default", "binned" to null, "min_frame_duration_ns" to 10, "stall_duration_ns" to 0))
+    }
+    private fun jpegRequest(format: String, jpeg: JSONObject?) = request().apply {
+        val stream = getJSONObject("settings").getJSONObject("stream")
+        if (format == "Jpeg") { stream.put("width", 8); stream.put("height", 6); stream.put("format", "Jpeg") }
+        getJSONObject("settings").put("jpeg", jpeg ?: JSONObject.NULL)
+    }
+    private fun jpegCode(format: String, jpeg: JSONObject?): String? = try {
+        RequestValidator.validate(jpegCaps(), jpegRequest(format, jpeg), "Reject"); null
+    } catch (e: CameraFault) { e.code }
+    @Test fun jpegQualityLimits() {
+        for (q in listOf(1, 100)) assertNull(jpegCode("Jpeg", obj("quality" to q)))
+        for (q in listOf(0, 101)) assertEquals("OutOfRange", jpegCode("Jpeg", obj("quality" to q)))
+        assertEquals("OutOfRange", jpegCode("Jpeg", obj("thumbnail_quality" to 0)))
+    }
+    @Test fun jpegOrientationSet() {
+        for (o in listOf(0, 90, 180, 270)) assertNull(jpegCode("Jpeg", obj("orientation" to o)))
+        assertEquals("InvalidRequest", jpegCode("Jpeg", obj("orientation" to 45)))
+    }
+    @Test fun jpegThumbnailSizeAnnounced() {
+        assertNull(jpegCode("Jpeg", obj("thumbnail_size" to obj("width" to 320, "height" to 240))))
+        assertNull(jpegCode("Jpeg", obj("thumbnail_size" to obj("width" to 0, "height" to 0))))
+        assertEquals("Unsupported", jpegCode("Jpeg", obj("thumbnail_size" to obj("width" to 640, "height" to 480))))
+    }
+    @Test fun jpegRefusedOnRaw() {
+        assertEquals("InvalidRequest", jpegCode("Raw16Le", obj("quality" to 90)))
+        assertNull(jpegCode("Raw16Le", obj()))
+    }
+    @Test fun legacyRequestWithoutJpegKey() {
+        val req = jpegRequest("Jpeg", null)
+        req.getJSONObject("settings").remove("jpeg")
+        RequestValidator.validate(jpegCaps(), req, "Reject")
+    }
 }

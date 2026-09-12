@@ -228,6 +228,8 @@ Ripetizione: `powershell -File doc/cli-regression.ps1` (produce fotografie vere 
 
 Per ogni voce: discovery reale → validazione tipizzata → richiesta CLI/Kotlin → CaptureResult → file/sidecar → errore esplicito se non supportato. Una chiave presente nel dump NON prova che sia controllabile o rispettata.
 
+- [x] JPEG tipizzati (quality 1..100 + rifiuto 0/101, orientation 0/90/180/270 + rifiuto, thumbnail nelle dimensioni annunciate + disabilitazione 0x0, rifiuto JPEG-su-RAW, requested/applied/reported + strict, flag CLI + JSON): implementato e verificato HW 2026-09-12 (q95/q60/q85, ori 90→EXIF 6, frontale, 5 rifiuti). Test: 9 Rust + 5 Kotlin, tutti verdi.
+
 - [ ] AE auto/manuale, compensazione, antibanding, lock, precapture, regioni e FPS range: combinazioni coerenti, niente valori manuali dichiarati applicati mentre AE li ignora; mantenere preflight scientifico deterministico.
 - [ ] AWB lock, gains/matrice e temperatura/tint soltanto se supportati e implementati; test preset/auto diagnostico e rifiuti scientifici.
 - [ ] Effetti, scene/extended scene, ZSL, post-RAW sensitivity boost: disponibilità e riscontro reale, nessuna attivazione implicita nelle sequenze RAW.
